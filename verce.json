@@ -1,18 +1,13 @@
 {
   "version": 2,
   "functions": {
-    "api/index.py": {
-      "runtime": "python3.12"
+    "api/app.py": {
+      "runtime": "python3.12",
+      "excludeFiles": "api/{data/**,not_needed/**}"
     }
   },
   "routes": [
-    {
-      "src": "^/api/.*",
-      "dest": "/api/index.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
+    { "src": "^/api/.*", "dest": "/api/app.py" },
+    { "src": "/(.*)", "dest": "/index.html" }
   ]
 }

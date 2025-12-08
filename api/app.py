@@ -41,8 +41,8 @@ gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 # classify goods
 #-----------------------------------------------------------------
 # load product info and embeddings
-catalog_embeddings = np.load('app_search_hscode_embeddings_genai.npy')
-df = pd.read_csv('app_search_hscode_df.csv')
+catalog_embeddings = np.load('./data/app_search_hscode_embeddings_genai.npy')
+df = pd.read_csv('./data/app_search_hscode_df.csv')
 df['HTS22'] =df['HTS22'].astype(pd.StringDtype())
 
 # loading the embedding model
