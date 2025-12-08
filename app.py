@@ -485,7 +485,7 @@ def trade_info():
         return jsonify({
             "ok": False,
             "message": f"Error while computing trade info: {e}",
-            "dashboard_url": DASHBOARD_URL,
+            #"dashboard_url": DASHBOARD_URL,
             "reset_to_product": True
         }), 500
 
@@ -508,8 +508,8 @@ def trade_info():
 
     msg = (
         f"The tariff rate of goods ({hs10}) imported from {country} is {a_val} "
-        f"in August, 2025 with a unit price of {b_val} in July 2025. "
-        f"I also have a dashboard on supply chain forecasting using the link below. "
+        f"in August, 2025 with a unit price of ${b_val} in July 2025. "
+        #f"I also have a dashboard on supply chain forecasting using the link below. "
         f"Please enter the description of another product."
     )
 
@@ -520,7 +520,7 @@ def trade_info():
         "country": country,
         "a": a_val,
         "b": b_val,
-        "dashboard_url": DASHBOARD_URL,
+        #"dashboard_url": DASHBOARD_URL,
         "reset_to_product": True  # frontend should go back to initial stage
     }), 200
 
