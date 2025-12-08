@@ -7,4 +7,4 @@ flask
 Flask-Cors
 sentence-transformers
 google-generativeai
-supabase-py
+supabase
