@@ -8,9 +8,6 @@ import pandas as pd
 from typing import List, Dict
 from flask_cors import CORS
 
-# for embeddings
-from sentence_transformers import SentenceTransformer
-
 # for using gemini api
 import json
 from flask import Flask, request, jsonify
@@ -25,48 +22,6 @@ from supabase import create_client, Client
 
 
 
-
-#-----------------------------------------------------------------
-# classify goods
-#-----------------------------------------------------------------
-# load product info and embeddings
-catalog_embeddings = np.load('app_search_hscode_embeddings.npy')
-df = pd.read_csv('app_search_hscode_df.csv')
-df['HTS22'] =df['HTS22'].astype(pd.StringDtype())
-# loading the embedding model
-model = SentenceTransformer("all-MiniLM-L6-v2")
-
-def classify_goods(user_des: str)-> Dict: 
-    user_emb = model.encode(
-        [user_des],
-        normalize_embeddings=True)  # shape: (1, dim)
-    
-    user_emb = np.asarray(user_emb)[0]  # shape: (dim,)
-    #print("Embedding matrix shape:", user_emb.shape)
-    similarities = catalog_embeddings @ user_emb  # dot product 
-                                              # (# product, 1)
-    # return top 5 indices
-    top_indices = np.argsort(-similarities)[:5]
-
-    candidates = []
-    for idx in top_indices:
-        cos_sim = float(similarities[idx])
-        conf = float((cos_sim + 1.0) / 2.0)
-        row = df.iloc[idx]
-        candidates.append({
-            "hs10": row["HTS22"],
-            "product": row["product"],
-            "similarity": cos_sim,
-            "confidence": conf})
-    best = candidates[0]
-
-    return {
-        "input": user_des,
-        "hs10": best["hs10"],
-        "product":best["product"],
-        "confidence":best["confidence"]
-    }
-
 #-----------------------------------------------------------------
 # Configure Gemini
 #-----------------------------------------------------------------
@@ -80,6 +35,63 @@ genai.configure(api_key=GEMINI_API_KEY)
 GEMINI_MODEL_NAME = "gemma-3-4b-it"
 
 gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
+
+
+#-----------------------------------------------------------------
+# classify goods
+#-----------------------------------------------------------------
+# load product info and embeddings
+catalog_embeddings = np.load('app_search_hscode_embeddings_genai.npy')
+df = pd.read_csv('app_search_hscode_df.csv')
+df['HTS22'] =df['HTS22'].astype(pd.StringDtype())
+
+# loading the embedding model
+def embed_with_gemini(text: str) -> np.ndarray:
+    resp = genai.embed_content(
+        model="models/text-embedding-004",  # Gemini embedding model
+        content=text,
+    )
+    vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
+
+    # L2-normalize to mimic `normalize_embeddings=True`
+    norm = np.linalg.norm(vec)
+    if norm > 0:
+        vec = vec / norm
+
+    return vec
+
+
+def classify_goods(user_des: str) -> Dict:
+   
+    # 1. Embed and normalize user description
+    user_emb = embed_with_gemini(user_des)     # shape: (dim,)
+
+    # 2. Cosine similarity via dot product (since both sides are normalized)
+    similarities = catalog_embeddings @ user_emb  # shape: (N,)
+
+    # 3. Top 5 matches
+    top_indices = np.argsort(-similarities)[:5]
+
+    candidates = []
+    for idx in top_indices:
+        cos_sim = float(similarities[idx])
+        conf = float((cos_sim + 1.0) / 2.0)  # map [-1,1] → [0,1]
+        row = df.iloc[idx]
+        candidates.append({
+            "hs10": row["HTS22"],
+            "product": row["product"],
+            "similarity": cos_sim,
+            "confidence": conf,
+        })
+
+    best = candidates[0]
+
+    return {
+        "input": user_des,
+        "hs10": best["hs10"],
+        "product": best["product"],
+        "confidence": best["confidence"],
+    }
 
 #-----------------------------------------------------------------
 # functions on the prompt to gemini

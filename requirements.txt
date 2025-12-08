@@ -5,6 +5,5 @@ numpy
 pandas
 flask
 Flask-Cors
-sentence-transformers
 google-generativeai
 supabase

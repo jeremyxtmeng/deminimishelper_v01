@@ -44,3 +44,38 @@ catalog_embeddings = np.asarray(catalog_embeddings)
 np.save('app_search_hscode_embeddings.npy', catalog_embeddings)
 df.to_csv('app_search_hscode_df.csv', index=False)
 
+
+
+
+# alternative of using genai to calculate embedding
+
+import google.generativeai as genai
+
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    raise RuntimeError("no GEMINI_API_KEY environment variable.")
+
+genai.configure(api_key=GEMINI_API_KEY)
+
+def embed_with_gemini(text: str) -> np.ndarray:
+    """
+    Get a normalized embedding vector for `text` using Gemini embeddings.
+    """
+    resp = genai.embed_content(
+        model="models/text-embedding-004",  # Gemini embedding model
+        content=text,
+    )
+    vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
+
+    # L2-normalize to mimic `normalize_embeddings=True`
+    norm = np.linalg.norm(vec)
+    if norm > 0:
+        vec = vec / norm
+
+    return vec
+
+catalog_texts = df["product"].tolist()
+emb_list = [embed_with_gemini(t) for t in catalog_texts]
+catalog_embeddings = np.vstack(emb_list)  
+
+np.save('app_search_hscode_embeddings_genai.npy', catalog_embeddings)
