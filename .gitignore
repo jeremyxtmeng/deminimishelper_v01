@@ -1,2 +1,12 @@
 .venv/
 db_prep/
+med_goods_hts22_final.csv
+test.py
+test_app.py
+prep_search_hscode.py
+app_search_hscode_embeddings.npy
+local_app.py
+local_main.html
+prep_search_hscode.py
+.vscode
+
