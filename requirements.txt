@@ -1,1 +1,15 @@
-streamlit==1.52.0
+# streamlit==1.52.0
+
+# in app.py
+os
+numpy
+pandas
+typing
+flask_cors
+sentence_transformers
+json
+flask
+google.generativeai
+re
+datetime
+supabase

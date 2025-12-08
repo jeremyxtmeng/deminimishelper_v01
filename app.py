@@ -20,17 +20,19 @@ import google.generativeai as genai
 import re
 
 # packages for postgre
-import psycopg2
-from psycopg2.extras import RealDictCursor
+from datetime import datetime, timezone, timedelta
+from supabase import create_client, Client
 
-# load product info and embeddings
-catalog_embeddings = np.load('app_search_hscode_embeddings.npy')
-df = pd.read_csv('app_search_hscode_df.csv')
-df['HTS22'] =df['HTS22'].astype(pd.StringDtype())
+
+
 
 #-----------------------------------------------------------------
 # classify goods
 #-----------------------------------------------------------------
+# load product info and embeddings
+catalog_embeddings = np.load('app_search_hscode_embeddings.npy')
+df = pd.read_csv('app_search_hscode_df.csv')
+df['HTS22'] =df['HTS22'].astype(pd.StringDtype())
 # loading the embedding model
 model = SentenceTransformer("all-MiniLM-L6-v2")
 
@@ -65,10 +67,6 @@ def classify_goods(user_des: str)-> Dict:
         "confidence":best["confidence"]
     }
 
-# test classify function
-#test_hs=classify_goods("Wheelchair")
-#print(test_hs.get("hs10"))
-
 #-----------------------------------------------------------------
 # Configure Gemini
 #-----------------------------------------------------------------
@@ -79,31 +77,13 @@ if not GEMINI_API_KEY:
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-# pick a fast model; adjust as needed
-
-#from google import genai
-#client = genai.Client()
-#print("List of models that support generateContent:\n")
-#for m in client.models.list():
-#    for action in m.supported_actions:
-#        if action == "generateContent":
-#            print(m.name)
-
 GEMINI_MODEL_NAME = "gemma-3-4b-it"
-
-# other options
-# gemini-2.5-flash
-#models/gemma-3-1b-it
-#models/gemma-3-4b-it
-#models/gemma-3-12b-it
-#models/gemma-3-27b-it
 
 gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
 #-----------------------------------------------------------------
 # functions on the prompt to gemini
 #-----------------------------------------------------------------
-
 
 #---------------1: determining valid description-------------------
 def ask_gemini(prompt: str) -> str:
@@ -176,57 +156,45 @@ CORS(
     supports_credentials=False,
 )
 
-
 #-----------------------------------------------------------------
 # setting up limits to user requests
 #-----------------------------------------------------------------
 RATE_LIMIT = 50          # max prompts per IP
 WINDOW_SECONDS = 300    # 5-minute window
 
-POSTGRES_DSN = os.environ.get(
-    "POSTGRES_DSN",
-    "dbname=v0_db user=postgres password=lemontree host=localhost port=5432",
-)
+# Supabase HTTP client (keep this if you still use Supabase auth/storage/etc.)
+supabase_url: str = os.environ.get("SUPABASE_URL")
+supabase_key: str = os.environ.get("SUPABASE_ANON_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
 
-def get_db_conn():
-    conn = psycopg2.connect(POSTGRES_DSN, cursor_factory=RealDictCursor) # one connection per request
-    return conn
 
 def is_rate_limited(ip: str) -> bool:
-    conn = get_db_conn()
-    try:
-        with conn, conn.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT COUNT(*) AS cnt
-                FROM user_requests
-                WHERE ip = %s
-                  AND "time" >= NOW() - INTERVAL '{WINDOW_SECONDS} seconds'
-                """,
-                (ip,),
-            )
-            row = cur.fetchone()
-            count = row["cnt"] if row is not None else 0
-    finally:
-        conn.close()
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS)
+    cutoff_iso = cutoff.isoformat()
 
+    resp = (
+        supabase
+        .table("user_requests")
+        .select("id", count="exact") 
+        .eq("ip", ip)
+        .gte("time", cutoff_iso)
+        .execute()
+    )
+
+    count = resp.count or 0
     return count >= RATE_LIMIT
 
-
 def log_request(ip: str, prompt: str) -> None:
-    conn = get_db_conn()
-    try:
-        with conn, conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO user_requests (ip, "time", prompt)
-                VALUES (%s, NOW(), %s)
-                """,
-                (ip, prompt),
-            )
-        conn.commit()
-    finally:
-        conn.close()
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    payload = {
+        "ip": ip,
+        "time": now_iso,
+        "prompt": prompt,
+    }
+
+    supabase.table("user_requests").insert(payload).execute()
 ##################################################################
 #-----------------------------------------------------------------
 # classification api
@@ -385,61 +353,51 @@ def extract_country(text: str) -> str | None:
             best_match = name
     return best_match
 
-from sqlalchemy import create_engine, text
+def get_tariffs_by_country(cntry: str, hs10: int) -> float | None:
+    resp = (
+        supabase
+        .table("tariff_rate_2025_08")
+        .select("col1_duty, tariff_temp_total")
+        .eq("name", cntry)
+        .eq("HTS22",  hs10 )
+        .limit(1)
+        .execute()
+    )
 
-db_url = "postgresql+psycopg2://postgres:lemontree@127.0.0.1:5432/v0_db"
-engine = create_engine(db_url)
+    rows = resp.data or []
+    if not rows:
+        return 0  
+    
+    row = rows[0]
+    col1_duty = row.get("col1_duty") or 0
+    tariff_temp_total = row.get("tariff_temp_total") or 0
 
-def get_tariffs_by_country(cntry: str, hs10: int) -> float:
-    """
-    Return a pandas Series of tariff values for a given country_name.
-    """
-    query = text(f"""
-        SELECT col1_duty + tariff_temp_total AS tariff
-        FROM {"tariff_rate_2025_08"}
-        WHERE name = :cntry 
-            AND "HTS22"=:hs10
-    """)
+    return float(col1_duty) + float(tariff_temp_total)
 
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn, params={"cntry": cntry, "hs10":hs10})
+def get_price_by_country(country: str, hs10: int) -> float:
+    resp = (
+        supabase
+        .table("trade_flow_2025_07")
+        .select('DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO')
+        .eq('name', country)
+        .eq('HTS22', hs10)
+        .limit(1)              # just one row is enough
+        .execute()
+    )
 
-    if df.empty:
-        return None  # or raise ValueError("No match found")
+    rows = resp.data or []
+    if not rows:
+        return 0.0
 
-    # returns just the tariff column (Series)
-    return df.iat[0, 0]
+    row = rows[0]
+    dut_val = row.get("DUT_VAL_MO") or 0
+    cif_val = row.get("GEN_CIF_MO") or 0
+    qty     = row.get("GEN_QY1_MO") or 0
 
-def get_price_by_country(cntry: str, hs10: int) -> float:
-    """
-    Return a pandas Series of unit prices for a given country_name.
-    """
-    query = text(f"""
-       SELECT
-         COALESCE(
-           MAX(
-             CASE
-               WHEN "GEN_QY1_MO" = 0 THEN 0
-               ELSE ("DUT_VAL_MO" + "GEN_CIF_MO")::numeric / "GEN_QY1_MO"
-             END
-           ),
-           0
-         ) AS unit_price
-        FROM {"trade_flow_2025_07"}
-        WHERE name = :cntry 
-            AND "HTS22"=:hs10
-    """)
-
-    with engine.connect() as conn:
-        df = pd.read_sql(query, conn, params={"cntry": cntry, "hs10":hs10})
-
-    if df.empty:
-        return None  # or raise ValueError("No match found")
-
-    # returns just the tariff column (Series)
-    return df.iat[0, 0]
-
-DASHBOARD_URL = "https://v.0.1.deminimishelper.com/"
+    if not qty or qty == 0:
+        return 0.0
+    total = dut_val + cif_val
+    return float(total) / float(qty)
 
 @app.post("/api/trade-info")
 def trade_info():
@@ -472,8 +430,7 @@ def trade_info():
         return jsonify({
             "ok": False,
             "message": "I could not detect a country name from your input. "
-                       "Please enter the description of another product. I also have a dashboard on supply chain forecasting using the link below",
-            "dashboard_url": DASHBOARD_URL,
+                       "Please enter the description of another product.",
             "reset_to_product": True # go back to product description stage
         }), 200
 
@@ -485,7 +442,6 @@ def trade_info():
         return jsonify({
             "ok": False,
             "message": f"Error while computing trade info: {e}",
-            #"dashboard_url": DASHBOARD_URL,
             "reset_to_product": True
         }), 500
 
@@ -502,14 +458,12 @@ def trade_info():
         return jsonify({
             "ok": False,
             "message": f"I encounter an error in retrieving information. Do you want to try another country (e.g. Canada, China)?",
-            #"message": f"Error converting trade values: {e}",
             "reset_to_product": False
         }), 500
 
     msg = (
         f"The tariff rate of goods ({hs10}) imported from {country} is {a_val} "
         f"in August, 2025 with a unit price of ${b_val} in July 2025. "
-        #f"I also have a dashboard on supply chain forecasting using the link below. "
         f"Please enter the description of another product."
     )
 
@@ -520,8 +474,7 @@ def trade_info():
         "country": country,
         "a": a_val,
         "b": b_val,
-        #"dashboard_url": DASHBOARD_URL,
-        "reset_to_product": True  # frontend should go back to initial stage
+        "reset_to_product": True  # frontend back to the initial stage
     }), 200
 
 
