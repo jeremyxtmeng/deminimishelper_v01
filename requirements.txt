@@ -12,4 +12,5 @@ flask
 google.generativeai
 re
 datetime
-supabase
+supabase-py
+psycopg2-binary
