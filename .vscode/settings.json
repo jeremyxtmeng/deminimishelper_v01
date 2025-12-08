@@ -1,0 +1,16 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "name": "pglocal",
+            "username": "postgres",
+            "database": "v0_db",
+            "password": "lemontree"
+        }
+    ],
+    "sqltools.results.reuseTabs": "connection"
+}

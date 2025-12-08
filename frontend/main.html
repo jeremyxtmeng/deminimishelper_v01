@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>De Minimis Helper</title>
+  <style>
+    :root {
+      --bg-top: #faf5ff;
+      --bg-bottom: #ffe9c7;
+      --card-bg: #ffffff;
+      --accent: #ff7a1a;
+      --accent-soft: rgba(255, 122, 26, 0.08);
+      --border-subtle: #e5e7eb;
+      --text-main: #111827;
+      --text-muted: #6b7280;
+      --chip-bg: #f3f4f6;
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.12);
+      --radius-lg: 24px;
+      --radius-pill: 999px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+      color: var(--text-main);
+      background: radial-gradient(circle at top left, #f9fafb 0, #f3f4ff 30%),
+        linear-gradient(to bottom, var(--bg-top), var(--bg-bottom));
+      display: flex;
+      flex-direction: column;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    button {
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+      background: none;
+    }
+
+    /* Top navigation */
+
+    .top-nav {
+      width: 100%;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1.2rem 1.5rem 0.75rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1.5rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    .logo-mark {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 200deg,
+        #ff7a1a,
+        #ffb02e,
+        #ff7a1a 70%,
+        #ffb02e
+      );
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.16);
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      flex: 1;
+      justify-content: center;
+    }
+
+    .nav-links a {
+      position: relative;
+      padding-bottom: 0.15rem;
+    }
+
+    .nav-links a::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 0;
+      height: 2px;
+      background: var(--accent);
+      transition: width 0.18s ease-out;
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    .workspace-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.4rem 0.85rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      background: rgba(255, 255, 255, 0.9);
+      font-size: 0.85rem;
+      color: #111827;
+      box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(10px);
+    }
+
+    .workspace-avatar {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #ff7a1a, #fb923c);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      color: #fff;
+    }
+
+    /* Main hero area */
+
+    main {
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .hero {
+      width: 100%;
+      max-width: 1200px;
+      margin-top: 1.75rem;
+      text-align: center;
+    }
+
+    .hero-title {
+      font-size: clamp(2.2rem, 3vw + 1rem, 3.1rem);
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      margin-bottom: 0.75rem;
+    }
+
+    .hero-subtitle {
+      font-size: 1rem;
+      color: var(--text-muted);
+      margin-bottom: 1.8rem;
+    }
+
+    /* Prompt card */
+
+    .prompt-card {
+      max-width: 900px;
+      margin: 0 auto;
+      background: var(--card-bg);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-soft);
+      border: 1px solid rgba(148, 163, 184, 0.25);
+      padding: 1.4rem 1.5rem 0.8rem;
+      text-align: left;
+    }
+
+    .prompt-textarea {
+      width: 100%;
+      min-height: 140px;
+      resize: vertical;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      line-height: 1.5;
+      color: var(--text-main);
+      background: transparent;
+    }
+
+    .prompt-textarea::placeholder {
+      color: #9ca3af;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      border-top: 1px solid rgba(229, 231, 235, 0.9);
+      padding-top: 0.7rem;
+      margin-top: 0.7rem;
+    }
+
+    .model-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.25rem 0.75rem;
+      border-radius: var(--radius-pill);
+      background: var(--accent-soft);
+      font-size: 0.8rem;
+      color: #92400e;
+    }
+
+    .model-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #22c55e;
+    }
+
+    .submit-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      background: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.15rem;
+      flex-shrink: 0;
+      box-shadow: 0 12px 25px rgba(248, 113, 22, 0.55);
+      transition: transform 0.1s ease-out, box-shadow 0.1s ease-out,
+        background 0.12s ease-out;
+    }
+
+    .submit-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 32px rgba(248, 113, 22, 0.65);
+      background: #fb923c;
+    }
+
+    .submit-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 8px 18px rgba(248, 113, 22, 0.5);
+    }
+
+    /* Response area */
+
+    .response-section {
+      max-width: 900px;
+      margin: 1.6rem auto 0;
+      text-align: left;
+    }
+
+    .response-card {
+      margin-top: 0.5rem;
+      border-radius: 18px;
+      border: 1px solid var(--border-subtle);
+      background: rgba(255, 255, 255, 0.85);
+      padding: 0.9rem 1rem;
+      font-size: 0.95rem;
+      color: var(--text-main);
+      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+      backdrop-filter: blur(6px);
+    }
+
+    .response-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+    }
+
+    .response-content {
+      margin-top: 0.5rem;
+      line-height: 1.55;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    /* Idea chips */
+
+    .ideas-row {
+      max-width: 900px;
+      margin: 1.8rem auto 0;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .ideas-label {
+      font-weight: 500;
+      margin-right: 0.3rem;
+    }
+
+    .chip {
+      padding: 0.4rem 0.85rem;
+      border-radius: var(--radius-pill);
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid rgba(209, 213, 219, 0.9);
+      box-shadow: 0 8px 15px rgba(148, 163, 184, 0.25);
+      transition: transform 0.08s ease-out, box-shadow 0.08s ease-out,
+        background 0.08s ease-out;
+      white-space: nowrap;
+    }
+
+    .chip:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 11px 22px rgba(148, 163, 184, 0.35);
+      background: #f9fafb;
+    }
+
+    @media (max-width: 768px) {
+      .top-nav {
+        padding-inline: 1rem;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        margin-top: 1.2rem;
+      }
+
+      .prompt-card {
+        padding-inline: 1.1rem;
+      }
+
+      .ideas-row {
+        font-size: 0.85rem;
+      }
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    footer.site-footer {
+        width: 100%;
+        padding: 0.9rem 1rem 1.3rem;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        display: flex;
+        justify-content: center;
+        text-align: center;
+    }
+
+    footer.site-footer span {
+        opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top navigation -->
+  <header
+    class="top-nav"
+    style="
+      justify-content: flex-start;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.25rem;
+      padding-bottom: 0.75rem;
+    "
+  >
+    <h1
+      style="
+        font-size: 1.35rem;
+        font-weight: 650;
+        letter-spacing: 0.08em;
+        text-transform: captalize;
+        color: var(--text-main);
+      "
+    >
+      De Minimis Helper
+    </h1>
+    <p
+      style="
+        font-size: 0.95rem;
+        color: var(--text-muted);
+        opacity: 0.9;
+      "
+    >
+      Empowering global small exporters and importers
+    </p>
+  </header>
+
+  <!-- Key functions, softly blended into the background -->
+  <section
+    style="
+      max-width: 1200px;
+      margin: 0 auto 1.75rem;
+      padding: 0 1.5rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem 1.1rem;
+      align-items: center;
+    "
+  >
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.45);
+        border: 1px solid rgba(209, 213, 219, 0.8);
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+        backdrop-filter: blur(10px);
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      "
+    >
+      <span
+        style="
+          width: 28px;
+          height: 28px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(255, 122, 26, 0.12);
+          border: 1px solid rgba(248, 113, 22, 0.3);
+          font-size: 1.05rem;
+        "
+        aria-hidden="true"
+      >
+        🧮
+      </span>
+      <span>Tariff Engineering</span>
+    </div>
+
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.45);
+        border: 1px solid rgba(209, 213, 219, 0.8);
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+        backdrop-filter: blur(10px);
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      "
+    >
+      <span
+        style="
+          width: 28px;
+          height: 28px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(56, 189, 248, 0.12);
+          border: 1px solid rgba(59, 130, 246, 0.3);
+          font-size: 1.05rem;
+        "
+        aria-hidden="true"
+      >
+        💱
+      </span>
+      <span>Trade &amp; Finance Optimization</span>
+    </div>
+
+    <div
+      style="
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.6rem 1.1rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.45);
+        border: 1px solid rgba(209, 213, 219, 0.8);
+        box-shadow: 0 10px 25px rgba(15, 23, 42, 0.05);
+        backdrop-filter: blur(10px);
+        font-size: 0.9rem;
+        color: var(--text-muted);
+      "
+    >
+      <span
+        style="
+          width: 28px;
+          height: 28px;
+          border-radius: 999px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(52, 211, 153, 0.12);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          font-size: 1.05rem;
+        "
+        aria-hidden="true"
+      >
+        📦
+      </span>
+      <span>Supply Chain Forecasts</span>
+    </div>
+  </section>
+
+
+  <!-- Main hero content -->
+  <main>
+    <section class="hero">
+      <h1 class="hero-title">What would you like to know today?</h1>
+      <p class="hero-subtitle">
+        Describe the goods you are importing into the U.S.
+      </p>
+
+      <!-- Prompt card -->
+      <form class="prompt-card" id="prompt-form">
+        <label for="prompt-input" class="sr-only" id="prompt-label">
+          This pilot version is limited to medical devices. Describe ONE medical device/equipment...
+        </label>
+        <textarea
+          id="prompt-input"
+          class="prompt-textarea"
+          placeholder="This pilot version is only limited to medical devices. Describe ONE medical device/equipment..."
+          required
+        ></textarea>
+
+        <div class="card-footer">   
+        <!--
+          <div class="model-pill">
+            <span class="model-dot"></span>
+            <span>Powered by Ollama</span>
+          </div>
+        -->
+          <span></span><button type="submit" class="submit-btn" aria-label="Send prompt"></span>
+            ➜
+          </button>
+        </div>
+      </form>
+
+      <!-- Response preview -->
+      <section class="response-section hidden" id="response-section">
+        <div class="response-title">Response</div>
+        <div class="response-card">
+          <div class="response-content" id="response-content"></div>
+        </div>
+      </section>
+
+      <!-- Idea chips -->
+      <div class="ideas-row" id="ideas-row">
+        <span class="ideas-label">Goods to get started</span>
+        <button class="chip" type="button">
+          Wheelchairs
+        </button>
+        <button class="chip" type="button">
+          MRI Machines
+        </button>
+        <button class="chip" type="button">
+          Stethoscopes
+        </button>
+      </div>
+    </section>
+  </main>
+
+
+   <footer class="site-footer">
+       <span>© 2025 De Minimis Helper. Created by Economist with Love. All rights reserved. Click <a href="https://github.com/jeremyxtmeng/deminimishelper_v01.git" target="_blank" rel="noopener noreferrer">
+        here</a> for the Github repo. </span> <span class="heart-icon">🧡</span>
+  </footer>
+
+<script>
+  const CLASSIFY_API_URL = "http://127.0.0.1:5000/api/medical-classify";
+  const TRADE_API_URL = "http://127.0.0.1:5000/api/trade-info";
+
+  let hasSubmittedOnce = false;
+  let awaitingCountry = false;
+  let currentHs10 = null;
+
+  function escapeHTML(str) {
+    return str.replace(/[&<>"']/g, function (m) {
+      switch (m) {
+        case "&":
+          return "&amp;";
+        case "<":
+          return "&lt;";
+        case ">":
+          return "&gt;";
+        case '"':
+          return "&quot;";
+        default:
+          return "&#39;";
+      }
+    });
+  }
+
+  const form = document.getElementById("prompt-form");
+  const textarea = document.getElementById("prompt-input");
+  const label = document.getElementById("prompt-label");
+  const responseSection = document.getElementById("response-section");
+  const responseContent = document.getElementById("response-content");
+  const ideasRow = document.getElementById("ideas-row");
+  const chips = document.querySelectorAll(".chip");
+
+  // Fill textarea from idea chips
+  chips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const idea = chip.textContent.trim();
+      textarea.value = `${idea}`;
+      textarea.focus();
+    });
+  });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const prompt = textarea.value.trim();
+    if (!prompt) return;
+
+    responseSection.classList.remove("hidden");
+
+    // If we're waiting for a country, go to trade-info endpoint
+    if (awaitingCountry && currentHs10) {
+      responseContent.innerHTML =
+        "<em>Checking trade policy and supply chain…</em>";
+      await handleTradeInfo(prompt);
+      return;
+    }
+
+    // Otherwise, normal classification step
+    responseContent.innerHTML = "<em>Validating your description…</em>";
+
+    // After first submit: hide chips + change prompt card text
+    if (!hasSubmittedOnce) {
+      hasSubmittedOnce = true;
+      if (ideasRow) ideasRow.classList.add("hidden");
+
+      textarea.value = "";
+      textarea.placeholder =
+        "Describe another medical device or ask a follow-up question…";
+      label.textContent = "Describe your request…";
+    }
+
+    try {
+      const res = await fetch(CLASSIFY_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        const msg =
+          (data && data.message) ||
+          "Your input does not look like a description of ONE medical device. Please try again.";
+        responseContent.innerHTML =
+          "<p><strong>Notice</strong></p><p>" + escapeHTML(msg) + "</p>";
+
+        // Reset to product stage on error
+        awaitingCountry = false;
+        currentHs10 = null;
+        return;
+      }
+
+      // ---- Render classification response ----
+      const hs10 = data.hs10 || "N/A";
+      const labelText = data.label || "No label returned";
+      const extra = data.extra || {};
+      const validatorReason = data.validator_reason || "";
+      const message = data.message || "";
+      const followupPrompt = data.followup_prompt || "";
+
+      let extraHtml = "";
+      if (Object.keys(extra).length > 0) {
+        extraHtml =
+          "<ul style='margin-top:0.4rem;padding-left:1.1rem;font-size:0.9rem;'>" +
+          Object.entries(extra)
+            .map(
+              ([k, v]) =>
+                "<li><strong>" +
+                escapeHTML(k) +
+                ":</strong> " +
+                escapeHTML(String(v)) +
+                "</li>"
+            )
+            .join("") +
+          "</ul>";
+      }
+
+      let html =
+        "<p><strong>Classification result</strong></p>" +
+        "<p><strong>HS10:</strong> " +
+        escapeHTML(hs10) +
+        "<br/><strong>Description:</strong> " +
+        escapeHTML(labelText) +
+        "</p>";
+
+      if (validatorReason) {
+        html +=
+          "<p style='margin-top:0.6rem;font-size:0.9rem;color:#6b7280;'><strong>Validator:</strong> " +
+          escapeHTML(validatorReason) +
+          "</p>";
+      }
+
+      html += extraHtml;
+
+      if (message) {
+        html +=
+          "<p style='margin-top:0.75rem;'>" + escapeHTML(message) + "</p>";
+      }
+
+      if (followupPrompt) {
+        html +=
+          "<p style='margin-top:0.5rem;font-style:italic;'>" +
+          escapeHTML(followupPrompt) +
+          "</p>";
+      }
+
+      responseContent.innerHTML = html;
+
+      // If there's a followup_prompt, go into "awaiting country" mode
+      if (followupPrompt && data.hs10) {
+        awaitingCountry = true;
+        currentHs10 = data.hs10;
+      } else {
+        awaitingCountry = false;
+        currentHs10 = null;
+      }
+    } catch (err) {
+      console.error(err);
+      responseContent.innerHTML =
+        "<span style='color:#b91c1c'>Error contacting the backend. Is the Flask server running on port 5000?</span>";
+      awaitingCountry = false;
+      currentHs10 = null;
+    }
+  });
+
+  // helper
+  async function handleTradeInfo(prompt) {
+    try {
+      const res = await fetch(TRADE_API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt, hs10: currentHs10 }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.ok) {
+        const msg =
+          (data && data.message) ||
+          "Sorry, I couldn't process your request. Please enter the description of another product.";
+        responseContent.innerHTML =
+          "<p><strong>Notice</strong></p><p>" + escapeHTML(msg) + "</p>";
+
+        // If backend says reset_to_product, go back to initial stage
+        if (data && data.reset_to_product) {
+          awaitingCountry = false;
+          currentHs10 = null;
+        }
+        return;
+      }
+
+      const msg = data.message || "Trade information retrieved.";
+      const dashboardUrl = data.dashboard_url || null;
+
+      let html =
+        "<p><strong>Trade &amp; Tariff Information</strong></p>" +
+        "<p>" + escapeHTML(msg) + "</p>";
+
+      if (dashboardUrl) {
+        html +=
+          "<p><a href=\"" +
+          escapeHTML(dashboardUrl) +
+          "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
+          escapeHTML(dashboardUrl) +
+          "</a></p>";
+      }
+
+      responseContent.innerHTML = html;
+
+      // Backend tells us to reset to product description stage
+      if (data.reset_to_product) {
+        awaitingCountry = false;
+        currentHs10 = null;
+      }
+    } catch (err) {
+      console.error(err);
+      responseContent.innerHTML =
+        "<span style='color:#b91c1c'>Error contacting the backend for trade info.</span>";
+      awaitingCountry = false;
+      currentHs10 = null;
+    }
+  }
+</script>
+</body>
+</html>
