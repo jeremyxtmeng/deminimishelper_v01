@@ -6,3 +6,4 @@ flask
 Flask-Cors
 google-generativeai
 supabase
+requests
