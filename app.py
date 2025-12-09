@@ -39,7 +39,7 @@ gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 # classify goods
 #-----------------------------------------------------------------
 # load product embeddings
-catalog_embeddings = np.load("./api/app_search_hscode_embeddings_genai.npy")
+catalog_embeddings = np.load("app_search_hscode_embeddings_genai.npy")
 
 CATALOG: List[Dict[str, Any]] = []  # [{"hs10": int, "product": str}, ...]
 
@@ -48,7 +48,7 @@ def load_catalog_from_json() -> None:
     if CATALOG:
         return
 
-    json_path = "./api/med_goods_hts22_final.json"
+    json_path = "med_goods_hts22_final.json"
     with open(json_path, "r", encoding="utf-8") as f:
         CATALOG = json.load(f)
 
