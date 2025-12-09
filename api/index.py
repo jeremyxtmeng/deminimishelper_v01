@@ -424,7 +424,7 @@ def extract_country(text: str) -> str | None:
             best_match = name
     return best_match
 
-def get_tariffs_by_country(cntry: str, hs10: int) -> float | None:
+def get_tariffs_by_country(cntry: str, hs10: int) -> float:
     resp = (
         supabase
         .table("tariff_rate_2025_08")
@@ -440,8 +440,8 @@ def get_tariffs_by_country(cntry: str, hs10: int) -> float | None:
         return 0  
 
     row = rows[0]
-    col1_duty = row.get("col1_duty") or 0
-    tariff_temp_total = row.get("tariff_temp_total") or 0
+    col1_duty = row.get("col1_duty") 
+    tariff_temp_total = row.get("tariff_temp_total") 
 
     return float(col1_duty) + float(tariff_temp_total)
 
