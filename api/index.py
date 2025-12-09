@@ -516,41 +516,8 @@ def trade_info():
 
     # Call your backend functions (e.g., query PostgreSQL, etc.)
     try:
-        a_val = get_tariffs_by_country(country,hs10)
-        b_val = get_price_by_country(country,hs10)
-    
-
-    # Convert numpy arrays (or other containers) to scalars
-    #def to_scalar(x):
-    #    if isinstance(x, (np.ndarray, list, tuple)) and len(x) > 0:
-    #        return float(x[0])
-    #    return float(x)
-
-    #try:
-    #    a_val = to_scalar(a_arr)
-    #    b_val = round(to_scalar(b_arr),3)
-    #except Exception as e:
-    #    return jsonify({
-    #        "ok": False,
-    #        "message": f"I encounter an error in retrieving information. Do you want to try another country (e.g. Canada, China)?",
-    #        "reset_to_product": False
-    #    }), 500
-
-        msg = (
-            f"The tariff rate of goods ({hs10}) imported from {country} is {a_val} "
-            f"in August, 2025 with a unit price of ${b_val} in July 2025. "
-            f"Please enter the description of another product."
-        )
-
-        return jsonify({
-            "ok": True,
-            "message": msg,
-            "hs10": hs10,
-            "country": country,
-            "a": a_val,
-            "b": b_val,
-            "reset_to_product": True  # frontend back to the initial stage
-        }), 200
+        a_rr = get_tariffs_by_country(country,hs10)
+        b_rr = get_price_by_country(country,hs10)
 
     except Exception as e:
         return jsonify({
@@ -558,6 +525,38 @@ def trade_info():
             "message": f"Error while computing trade info: {e}",
             "reset_to_product": True
         }), 500
+    # Convert numpy arrays (or other containers) to scalars
+    def to_scalar(x):
+        if isinstance(x, (np.ndarray, list, tuple)) and len(x) > 0:
+            return float(x[0])
+        return float(x)
+
+    try:
+        a_val = to_scalar(a_rr)
+        b_val = round(to_scalar(b_rr),3)
+    except Exception as e:
+        return jsonify({
+            "ok": False,
+            "message": f"I encounter an error in retrieving information. Do you want to try another country (e.g. Canada, China)?",
+            "reset_to_product": False
+        }), 500
+
+    msg = (
+        f"The tariff rate of goods ({hs10}) imported from {country} is {a_val} "
+        f"in August, 2025 with a unit price of ${b_val} in July 2025. "
+        f"Please enter the description of another product."
+    )
+    return jsonify({
+        "ok": True,
+        "message": msg,
+        "hs10": hs10,
+        "country": country,
+        "a": a_val,
+        "b": b_val,
+        "reset_to_product": True  # frontend back to the initial stage
+    }), 200
+
+
 
 
 if __name__ == "__main__":
