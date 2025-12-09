@@ -430,7 +430,7 @@ def get_tariffs_by_country(cntry: str, hs10: int) -> float:
         .table("tariff_rate_2025_08")
         .select("col1_duty, tariff_temp_total")
         .eq("name", cntry)
-        .eq("HTS22",  hs10 )
+        .eq("hts22",  hs10 )
         .limit(1)
         .execute()
     )
@@ -451,7 +451,7 @@ def get_price_by_country(country: str, hs10: int) -> float:
         .table("trade_flow_2025_07")
         .select('DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO')
         .eq('name', country)
-        .eq('HTS22', hs10)
+        .eq('hts22', hs10)
         .limit(1)              # just one row is enough
         .execute()
     )
