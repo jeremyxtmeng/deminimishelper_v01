@@ -2,7 +2,7 @@
 {
   "functions": {
     "api/index.py": {
-      "runtime": "python"
+      "runtime": "python3.12"
     }
   },
   "rewrites": [
