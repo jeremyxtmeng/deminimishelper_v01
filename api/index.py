@@ -508,8 +508,8 @@ def trade_info():
 
     # Call your backend functions (e.g., query PostgreSQL, etc.)
     try:
-        a_arr = get_tariffs_by_country(country,hs10)
-        b_arr = get_price_by_country(country,hs10)
+        a_val = get_tariffs_by_country(country,hs10)
+        b_val = get_price_by_country(country,hs10)
     
 
     # Convert numpy arrays (or other containers) to scalars
@@ -533,7 +533,7 @@ def trade_info():
             f"in August, 2025 with a unit price of ${b_val} in July 2025. "
             f"Please enter the description of another product."
         )
-    
+
         return jsonify({
             "ok": True,
             "message": msg,
