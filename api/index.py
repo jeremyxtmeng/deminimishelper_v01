@@ -314,7 +314,7 @@ def main_app():
     confidence = None
     try:
         confidence = float(hs_result.get("confidence"))
-        log_request(ip, confidence)
+
     except (TypeError, ValueError):
         confidence = None
 
@@ -356,7 +356,10 @@ def main_app():
         "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
         "information on trade policy and supply chain."
     )
+   
     # --- 5b) High confidence: normal classification + follow-up guidance ---
+    log_request(ip, hs_result.get("product"))
+
     return jsonify({
         "ok": True,
         "hs10": hs_result.get("hs10"),
