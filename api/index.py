@@ -255,12 +255,12 @@ app = Flask(__name__, template_folder="templates")
 def home():
     return render_template("index.html")
 
+@app.route("/api/medical-classify", methods=["POST"])
     
 ##################################################################
 #-----------------------------------------------------------------
 # classification api
 #-----------------------------------------------------------------
-@app.route("/api/medical-classify", methods=["POST"])
 
 def main_app():
     body = request.get_json(force=True)
@@ -348,20 +348,19 @@ def main_app():
             "message": fallback_msg, 
             #"validator_reason": reason,
         }), 200
+    else:
+        followup_prompt = (
+        "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
+        "information on trade policy and supply chain.")
 
     # --- 5b) High confidence: normal classification + follow-up guidance ---
-    followup_prompt = (
-        "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
-        "information on trade policy and supply chain."
-    )
-
-    return jsonify({
-        "ok": True,
-        "hs10": hs_result.get("hs10"),
-        "label": hs_result.get("product"),
-        "followup_prompt": followup_prompt,
-        "message": None,  # you can also put a generic message here if you like
-    }), 200
+        return jsonify({
+            "ok": True,
+            "hs10": hs_result.get("hs10"),
+            "label": hs_result.get("product"),
+            "followup_prompt": followup_prompt,
+            #"message": None,  # you can also put a generic message here if you like
+        }), 200
 
     #return jsonify({
     #    "ok": True,
