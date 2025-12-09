@@ -2,8 +2,7 @@
   "version": 2,
   "functions": {
     "api/app.py": {
-      "runtime": "python3.12",
-      "excludeFiles": "api/{data/**,not_needed/**}"
+      "runtime": "python3.12"
     }
   },
   "routes": [

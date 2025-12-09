@@ -2,7 +2,6 @@
 
 # in app.py
 numpy
-pandas
 flask
 Flask-Cors
 google-generativeai

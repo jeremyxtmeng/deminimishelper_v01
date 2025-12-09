@@ -4,8 +4,7 @@
 
 import os
 import numpy as np
-import pandas as pd
-from typing import List, Dict
+from typing import List, Dict, Any
 from flask_cors import CORS
 
 # for using gemini api
@@ -19,8 +18,6 @@ import re
 # packages for postgre
 from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
-
-
 
 #-----------------------------------------------------------------
 # Configure Gemini
@@ -37,13 +34,23 @@ GEMINI_MODEL_NAME = "gemma-3-4b-it"
 gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
 
+
 #-----------------------------------------------------------------
 # classify goods
 #-----------------------------------------------------------------
-# load product info and embeddings
-catalog_embeddings = np.load('./data/app_search_hscode_embeddings_genai.npy')
-df = pd.read_csv('./data/app_search_hscode_df.csv')
-df['HTS22'] =df['HTS22'].astype(pd.StringDtype())
+# load product embeddings
+catalog_embeddings = np.load("./api/app_search_hscode_embeddings_genai.npy")
+
+CATALOG: List[Dict[str, Any]] = []  # [{"hs10": int, "product": str}, ...]
+
+def load_catalog_from_json() -> None:
+    global CATALOG
+    if CATALOG:
+        return
+
+    json_path = "./api/med_goods_hts22_final.json"
+    with open(json_path, "r", encoding="utf-8") as f:
+        CATALOG = json.load(f)
 
 # loading the embedding model
 def embed_with_gemini(text: str) -> np.ndarray:
@@ -60,35 +67,32 @@ def embed_with_gemini(text: str) -> np.ndarray:
 
     return vec
 
-
 def classify_goods(user_des: str) -> Dict:
-   
-    # 1. Embed and normalize user description
-    user_emb = embed_with_gemini(user_des)     # shape: (dim,)
+    global CATALOG, catalog_embeddings
+    if not CATALOG:
+        load_catalog_from_json()
 
-    # 2. Cosine similarity via dot product (since both sides are normalized)
-    similarities = catalog_embeddings @ user_emb  # shape: (N,)
+    user_emb = embed_with_gemini(user_des)
+    similarities = catalog_embeddings @ user_emb
 
-    # 3. Top 5 matches
     top_indices = np.argsort(-similarities)[:5]
 
     candidates = []
     for idx in top_indices:
         cos_sim = float(similarities[idx])
-        conf = float((cos_sim + 1.0) / 2.0)  # map [-1,1] → [0,1]
-        row = df.iloc[idx]
+        conf = float((cos_sim + 1.0) / 2.0)
+        item = CATALOG[idx]  # {"hs10": int, "product": str}
         candidates.append({
-            "hs10": row["HTS22"],
-            "product": row["product"],
+            "hs10": item["hs10"],           # int
+            "product": item["product"],
             "similarity": cos_sim,
             "confidence": conf,
         })
 
     best = candidates[0]
-
     return {
         "input": user_des,
-        "hs10": best["hs10"],
+        "hs10": best["hs10"],              # int in JSON is fine
         "product": best["product"],
         "confidence": best["confidence"],
     }
