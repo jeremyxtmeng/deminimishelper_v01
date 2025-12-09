@@ -257,14 +257,24 @@ def main_app():
             "message": f"Internal error while classifying HS10: {e}"
         }), 500
     
-    confidence = None
-    try:
-        confidence = float(hs_result.get("confidence"))
-    except (TypeError, ValueError):
-        confidence = None
+    confidence = float(hs_result.get("confidence"))
+
+    followup_prompt = (
+        "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
+        "information on trade policy and supply chain.")
 
     # --- 5a) Low confidence: use Gemini as fallback classifier ---
-    if confidence is None or confidence < LOW_CONF_THRESHOLD:
+    if  confidence > LOW_CONF_THRESHOLD:
+        hs_a=hs_result.get("hs10")
+        hs_b=hs_result.get("product")
+        return jsonify({
+            "ok": True,
+            "hs10": hs_a,
+            "label": hs_b,
+            "followup_prompt": followup_prompt,
+            #"message": None,  # you can also put a generic message here if you like
+            }), 200
+    else:    
         fallback_msg = (
             "Your description is not in the pilot version of the database, which only contains medical devices. "
             "I will let a Gen AI help you with a rough classification, though it may not be accurate. "
@@ -294,38 +304,6 @@ def main_app():
             },
             "message": fallback_msg, 
             #"validator_reason": reason,
-        }), 200
-    
-    if 1>0:
-        followup_prompt = (
-        "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
-        "information on trade policy and supply chain.")
-
-    # --- 5b) High confidence: normal classification + follow-up guidance ---
-        try:
-            hs_a=hs_result.get("hs10")
-            hs_b=hs_result.get("product")
-
-            return jsonify({
-                "ok": True,
-                "hs10": hs_a,
-                "label": hs_b,
-                "followup_prompt": followup_prompt,
-            #"message": None,  # you can also put a generic message here if you like
-            }), 200
-        except Exception as e:
-            return jsonify({
-                "ok": True,
-                "hs10": None,
-                "label": None,
-                "message": f"The error is: {e}", 
-                # "validator_reason": reason,
-        }), 200
-
-    return jsonify({
-        "ok": True,
-        "hs10": hs_result.get("hs10"),
-        "label": hs_result.get("product"),
         }), 200
 
 ##############################################################3
