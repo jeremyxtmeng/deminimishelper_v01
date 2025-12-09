@@ -36,105 +36,7 @@ GEMINI_MODEL_NAME = "gemma-3-4b-it"
 
 gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
-#----------------------------------------
-EMBED_URL = os.environ.get(
-    "EMBED_URL",
-    "https://qacmfkbhcngbmewhxihm.supabase.co/storage/v1/object/public/static_file/app_search_hscode_embeddings_genai.npy",
-)
-CATALOG_URL = os.environ.get(
-    "CATALOG_URL",
-    "https://qacmfkbhcngbmewhxihm.supabase.co/storage/v1/object/public/static_file/med_goods_hts22_final.json",
-)
-
-catalog_embeddings: np.ndarray | None = None
-CATALOG: List[Dict[str, Any]] = []  # [{"hs10": int, "product": str}, ...]
-
-def load_embeddings_from_cloud() -> None:
-    global catalog_embeddings
-    if catalog_embeddings is not None:
-        return  # already loaded in this cold start
-
-    try:
-        print(f"[init] Downloading embeddings from {EMBED_URL}")
-        resp = requests.get(EMBED_URL, timeout=10)
-        resp.raise_for_status()
-
-        bio = BytesIO(resp.content)
-        catalog_embeddings_local = np.load(bio, allow_pickle=True, encoding="latin1")
-
-        catalog_embeddings = catalog_embeddings_local.astype(np.float32)
-        print(f"[init] Loaded embeddings, shape={catalog_embeddings.shape}")
-    except Exception as e:
-        print(f"[init] ERROR loading embeddings from cloud: {e}")
-        catalog_embeddings = np.zeros((0, 0), dtype=np.float32)
-
-
-def load_catalog_from_cloud() -> None:
-    global CATALOG
-    if CATALOG:
-        return  # already loaded
-
-    try:
-        print(f"[init] Downloading catalog from {CATALOG_URL}")
-        resp = requests.get(CATALOG_URL, timeout=10)
-        resp.raise_for_status()
-
-        CATALOG = json.loads(resp.text)
-        print(f"[init] Loaded {len(CATALOG)} catalog rows from cloud")
-    except Exception as e:
-        print(f"[init] ERROR loading catalog from cloud: {e}")
-        CATALOG = []
-
-
-# loading the embedding model
-def embed_with_gemini(text: str) -> np.ndarray:
-    resp = genai.embed_content(
-        model="models/text-embedding-004",  # Gemini embedding model
-        content=text,
-    )
-    vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
-
-    # L2-normalize to mimic `normalize_embeddings=True`
-    norm = np.linalg.norm(vec)
-    if norm > 0:
-        vec = vec / norm
-
-    return vec
-
-def classify_goods(user_des: str) -> Dict:
-    global CATALOG, catalog_embeddings
-
-    load_embeddings_from_cloud()
-    load_catalog_from_cloud()
-
-    if catalog_embeddings is None or catalog_embeddings.size == 0 or not CATALOG:
-        raise RuntimeError("Catalog or embeddings not loaded on the server.")
-
-    user_emb = embed_with_gemini(user_des)      # your existing embedding function
-    similarities = catalog_embeddings @ user_emb  # (N,)
-
-    top_indices = np.argsort(-similarities)[:5]
-
-    candidates = []
-    for idx in top_indices:
-        cos_sim = float(similarities[idx])
-        conf = float((cos_sim + 1.0) / 2.0)
-        item = CATALOG[idx]  # {"hs10": int, "product": str}
-        candidates.append({
-            "hs10": item["hs10"],
-            "product": item["product"],
-            "similarity": cos_sim,
-            "confidence": conf,
-        })
-
-    best = candidates[0]
-    return {
-        "input": user_des,
-        "hs10": best["hs10"],
-        "product": best["product"],
-        "confidence": best["confidence"],
-    }
-#-----------------------------------------------------------------
+#-------------------------------------------------------------
 # functions on the prompt to gemini
 #-----------------------------------------------------------------
 
@@ -199,15 +101,6 @@ def classify_with_gemini(text: str) -> dict:
     s = re.sub(r"\s*```$", "", s)
 
     return json.loads(s)
-
-
-#app = Flask(__name__)
-
-#CORS(
-#    app,
-#    resources={r"/api/*": {"origins": "*"}},
-#    supports_credentials=False,
-#)
 
 
 #-----------------------------------------------------------------
@@ -303,6 +196,106 @@ def main_app():
 
     # 4) Valid device description -> run the HS10 classifier
     try:
+        #----------------------------------------
+        EMBED_URL = os.environ.get(
+            "EMBED_URL",
+            "https://qacmfkbhcngbmewhxihm.supabase.co/storage/v1/object/public/static_file/app_search_hscode_embeddings_genai.npy",
+        )
+        CATALOG_URL = os.environ.get(
+            "CATALOG_URL",
+            "https://qacmfkbhcngbmewhxihm.supabase.co/storage/v1/object/public/static_file/med_goods_hts22_final.json",
+        )
+
+        catalog_embeddings: np.ndarray | None = None
+        CATALOG: List[Dict[str, Any]] = []  # [{"hs10": int, "product": str}, ...]
+
+            #------------------------------------------------------------------------------------
+        def load_embeddings_from_cloud() -> None:
+            global catalog_embeddings
+            if catalog_embeddings is not None:
+                return  # already loaded in this cold start
+
+            try:
+                print(f"[init] Downloading embeddings from {EMBED_URL}")
+                resp = requests.get(EMBED_URL, timeout=10)
+                resp.raise_for_status()
+
+                bio = BytesIO(resp.content)
+                catalog_embeddings_local = np.load(bio, allow_pickle=True, encoding="latin1")
+
+                catalog_embeddings = catalog_embeddings_local.astype(np.float32)
+                print(f"[init] Loaded embeddings, shape={catalog_embeddings.shape}")
+            except Exception as e:
+                print(f"[init] ERROR loading embeddings from cloud: {e}")
+                catalog_embeddings = np.zeros((0, 0), dtype=np.float32)
+
+
+        def load_catalog_from_cloud() -> None:
+            global CATALOG
+            if CATALOG:
+                return  # already loaded
+
+            try:
+                print(f"[init] Downloading catalog from {CATALOG_URL}")
+                resp = requests.get(CATALOG_URL, timeout=10)
+                resp.raise_for_status()
+
+                CATALOG = json.loads(resp.text)
+                print(f"[init] Loaded {len(CATALOG)} catalog rows from cloud")
+            except Exception as e:
+                print(f"[init] ERROR loading catalog from cloud: {e}")
+                CATALOG = []
+
+
+        # loading the embedding model
+        def embed_with_gemini(text: str) -> np.ndarray:
+            resp = genai.embed_content(
+                model="models/text-embedding-004",  # Gemini embedding model
+                content=text,
+            )
+            vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
+        
+            # L2-normalize to mimic `normalize_embeddings=True`
+            norm = np.linalg.norm(vec)
+            if norm > 0:
+                vec = vec / norm
+        
+            return vec
+
+        def classify_goods(user_des: str) -> Dict:
+            global CATALOG, catalog_embeddings
+
+            load_embeddings_from_cloud()
+            load_catalog_from_cloud()
+
+            if catalog_embeddings is None or catalog_embeddings.size == 0 or not CATALOG:
+                raise RuntimeError("Catalog or embeddings not loaded on the server.")
+
+            user_emb = embed_with_gemini(user_des)      # your existing embedding function
+            similarities = catalog_embeddings @ user_emb  # (N,)
+
+            top_indices = np.argsort(-similarities)[:5]
+
+            candidates = []
+            for idx in top_indices:
+                cos_sim = float(similarities[idx])
+                conf = float((cos_sim + 1.0) / 2.0)
+                item = CATALOG[idx]  # {"hs10": int, "product": str}
+                candidates.append({
+                    "hs10": item["hs10"],
+                    "product": item["product"],
+                    "similarity": cos_sim,
+                    "confidence": conf,
+                })
+
+            best = candidates[0]
+            return {
+                "input": user_des,
+                "hs10": best["hs10"],
+                "product": best["product"],
+                "confidence": best["confidence"],
+            }
+#-----------------------------------------------------------------
         hs_result = classify_goods(text)
     except Exception as e:
         return jsonify({
