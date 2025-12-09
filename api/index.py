@@ -227,9 +227,9 @@ def main_app():
         catalog_embeddings_local = np.load(bio, allow_pickle=True, encoding="latin1")
         catalog_embeddings = catalog_embeddings_local.astype(np.float32)
  
-        resp = requests.get(CATALOG_URL, timeout=10)
-        resp.raise_for_status()
-        CATALOG = json.loads(resp.text)
+        resp1 = requests.get(CATALOG_URL, timeout=10)
+        resp1.raise_for_status()
+        CATALOG = resp1.json()
 
 
         user_emb = embed_with_gemini(text)      #  existing embedding function
