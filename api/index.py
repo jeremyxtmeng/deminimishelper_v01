@@ -475,7 +475,7 @@ def get_price_by_country(country: str, hs10: int) -> float:
 def trade_info():
     body = request.get_json(force=True)
     text = (body.get("prompt") or "").strip()
-    hs10 = (body.get("hs10") or "").strip()
+    hs10 = int(body.get("hs10") )
 
     #---------------start logging-----------------------------
     # get IP and enforce rate limit
