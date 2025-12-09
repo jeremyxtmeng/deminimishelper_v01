@@ -213,7 +213,7 @@ def classify_with_gemini(text: str) -> dict:
 #-----------------------------------------------------------------
 # setting up limits to user requests
 #-----------------------------------------------------------------
-RATE_LIMIT = 50          # max prompts per IP
+RATE_LIMIT = 10          # max prompts per IP
 WINDOW_SECONDS = 300    # 5-minute window
 
 # Supabase HTTP client (keep this if you still use Supabase auth/storage/etc.)
