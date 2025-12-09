@@ -9,7 +9,7 @@ from flask_cors import CORS
 
 # for using gemini api
 import json
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
 import google.generativeai as genai
@@ -18,6 +18,13 @@ import re
 # packages for postgre
 from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
+
+app = Flask(__name__, template_folder="templates")
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
 
 #-----------------------------------------------------------------
 # Configure Gemini
@@ -165,13 +172,14 @@ def classify_with_gemini(text: str) -> dict:
     return json.loads(s)
 
 
-app = Flask(__name__)
+#app = Flask(__name__)
 
-CORS(
-    app,
-    resources={r"/api/*": {"origins": "*"}},
-    supports_credentials=False,
-)
+#CORS(
+#    app,
+#    resources={r"/api/*": {"origins": "*"}},
+#    supports_credentials=False,
+#)
+
 
 #-----------------------------------------------------------------
 # setting up limits to user requests
