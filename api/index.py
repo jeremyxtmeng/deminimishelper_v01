@@ -354,12 +354,24 @@ def main_app():
         "information on trade policy and supply chain.")
 
     # --- 5b) High confidence: normal classification + follow-up guidance ---
-        return jsonify({
-            "ok": True,
-            "hs10": hs_result.get("hs10"),
-            "label": hs_result.get("product"),
-            "followup_prompt": followup_prompt,
+        try:
+            hs_a=hs_result.get("hs10")
+            hs_b=hs_result.get("product")
+
+            return jsonify({
+                "ok": True,
+                "hs10": hs_a,
+                "label": hs_b,
+                "followup_prompt": followup_prompt,
             #"message": None,  # you can also put a generic message here if you like
+            }), 200
+        except Exception as e:
+            return jsonify({
+                "ok": True,
+                "hs10": None,
+                "label": None,
+                "message": f"The error is: {e}", 
+                # "validator_reason": reason,
         }), 200
 
     #return jsonify({
@@ -458,6 +470,7 @@ def get_price_by_country(country: str, hs10: int) -> float:
     return float(total) / float(qty)
 
 @app.post("/api/trade-info")
+
 def trade_info():
     body = request.get_json(force=True)
     text = (body.get("prompt") or "").strip()
