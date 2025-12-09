@@ -245,7 +245,6 @@ def main_app():
             })
 
         hs_result = candidates[0]
-        hs_result=CATALOG[2]
 #-----------------------------------------------------------------
     except Exception as e:
         return jsonify({
