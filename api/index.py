@@ -358,11 +358,11 @@ def main_app():
     )
    
     # --- 5b) High confidence: normal classification + follow-up guidance ---
-    log_request(ip, hs_result.get("hs10"))
+    #log_request(ip, hs_result.get("hs10"))
 
     return jsonify({
         "ok": True,
-        "hs10": hs_result.get("hs10"),
+        "hs10": int(hs_result.get("hs10")),
         "label": hs_result.get("product"),
         "followup_prompt": followup_prompt,
         #"message": None,  # you can also put a generic message here if you like
