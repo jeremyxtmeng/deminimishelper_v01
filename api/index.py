@@ -101,7 +101,7 @@ def embed_with_gemini(text: str) -> np.ndarray:
 
     return vec
 
-def classify_goods(user_des: str) -> Dict[str, Any]:
+def classify_goods(user_des: str) -> Dict:
     global CATALOG, catalog_embeddings
 
     load_embeddings_from_cloud()
