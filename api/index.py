@@ -435,9 +435,7 @@ def get_tariffs_by_country(cntry: str, hs10: int) -> float:
         .execute()
     )
 
-    rows = resp.data or []
-    if not rows:
-        return 0  
+    rows = resp.data 
 
     row = rows[0]
     col1_duty = row.get("col1_duty") 
@@ -457,13 +455,11 @@ def get_price_by_country(country: str, hs10: int) -> float:
     )
 
     rows = resp.data or []
-    if not rows:
-        return 0.0
 
     row = rows[0]
-    dut_val = row.get("DUT_VAL_MO") or 0
-    cif_val = row.get("GEN_CIF_MO") or 0
-    qty     = row.get("GEN_QY1_MO") or 0
+    dut_val = row.get("DUT_VAL_MO") 
+    cif_val = row.get("GEN_CIF_MO") 
+    qty     = row.get("GEN_QY1_MO") 
 
     if not qty or qty == 0:
         return 0.0
