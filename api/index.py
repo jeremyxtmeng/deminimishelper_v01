@@ -358,7 +358,7 @@ def main_app():
     )
    
     # --- 5b) High confidence: normal classification + follow-up guidance ---
-    log_request(ip, hs_result.get("product"))
+    log_request(ip, hs_result.get("hs10"))
 
     return jsonify({
         "ok": True,
