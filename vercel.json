@@ -2,11 +2,7 @@
 {
   "functions": {
     "api/index.py": {
-      "runtime": "python",
-      "includeFiles": [
-        "app_search_hscode_embeddings_genai.npy",
-        "med_goods_hts22_final.json"
-      ]
+      "runtime": "python"
     }
   },
   "rewrites": [
