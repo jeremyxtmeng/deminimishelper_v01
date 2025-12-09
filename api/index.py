@@ -348,7 +348,8 @@ def main_app():
             "message": fallback_msg, 
             #"validator_reason": reason,
         }), 200
-    else:
+    
+    if 1>0:
         followup_prompt = (
         "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
         "information on trade policy and supply chain.")
@@ -374,11 +375,11 @@ def main_app():
                 # "validator_reason": reason,
         }), 200
 
-    #return jsonify({
-    #    "ok": True,
-    #    "hs10": hs_result.get("hs10"),
-    #    "label": hs_result.get("product"),
-    #    }), 200
+    return jsonify({
+        "ok": True,
+        "hs10": hs_result.get("hs10"),
+        "label": hs_result.get("product"),
+        }), 200
 
 ##############################################################3
 #---------------------------------
