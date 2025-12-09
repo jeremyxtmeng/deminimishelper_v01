@@ -19,11 +19,6 @@ import re
 from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 
-app = Flask(__name__, template_folder="templates")
-
-@app.route("/")
-def home():
-    return render_template("index.html")
 
 
 #-----------------------------------------------------------------
@@ -219,6 +214,12 @@ def log_request(ip: str, prompt: str) -> None:
         "prompt": prompt,
     }
     supabase.table("user_requests").insert(payload).execute()
+
+app = Flask(__name__, template_folder="templates")
+
+@app.route("/")
+def home():
+    return render_template("index.html")
 
     
 ##################################################################
