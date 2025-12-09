@@ -250,6 +250,7 @@ def main_app():
             })
 
         hs_result = candidates[0]
+        hs_result=CATALOG[2]
 #-----------------------------------------------------------------
     except Exception as e:
         return jsonify({
@@ -283,9 +284,7 @@ def main_app():
         try:
             gem_cls = classify_with_gemini(text)
             hs10_guess = gem_cls.get("hs10_guess")
-            label_guess = gem_cls.get("label")
-
-            label_guess=catalog_embeddings.max().astype(str)
+            label_guess = hs_result.get("label")
 
         except Exception:
             return jsonify({
