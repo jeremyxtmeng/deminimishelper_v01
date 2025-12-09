@@ -378,15 +378,8 @@ def main_app():
         "ok": True,
         "hs10": int(hs_result.get("hs10")),
         "label": hs_result.get("product"),
-        "followup_prompt": followup_prompt,
-        #"message": None,  # you can also put a generic message here if you like
-    }), 200
+        "followup_prompt": followup_prompt}), 200
 
-    #return jsonify({
-    #    "ok": True,
-    #    "hs10": hs_result.get("hs10"),
-    #    "label": hs_result.get("product"),
-    #    }), 200
 
 ##############################################################3
 #---------------------------------

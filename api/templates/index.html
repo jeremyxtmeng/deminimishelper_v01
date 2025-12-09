@@ -597,7 +597,7 @@
   let currentHs10 = null;
 
   function escapeHTML(str) {
-    return str.replace(/[&<>"']/g, function (m) {
+    return String(str).replace(/[&<>"']/g, function (m) {
       switch (m) {
         case "&":
           return "&amp;";
@@ -625,10 +625,36 @@
   chips.forEach((chip) => {
     chip.addEventListener("click", () => {
       const idea = chip.textContent.trim();
-      textarea.value = `${idea}`;
+      textarea.value = idea;
       textarea.focus();
     });
   });
+
+  // Helper: generic POST + safe JSON parsing
+  async function postJson(url, payload) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const rawText = await res.text();
+    console.log("[postJson] URL:", url, "status:", res.status, "raw:", rawText);
+
+    let data = {};
+    if (rawText) {
+      try {
+        data = JSON.parse(rawText);
+      } catch (err) {
+        console.error("[postJson] JSON parse error:", err);
+        throw new Error(
+          "Backend returned a non-JSON response. See console or server logs."
+        );
+      }
+    }
+
+    return { res, data };
+  }
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -656,17 +682,13 @@
       textarea.value = "";
       textarea.placeholder =
         "Describe another medical device or ask a follow-up question…";
-      label.textContent = "Describe your request…";
+      if (label) {
+        label.textContent = "Describe your request…";
+      }
     }
 
     try {
-      const res = await fetch(CLASSIFY_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt }),
-      });
-
-      const data = await res.json();
+      const { res, data } = await postJson(CLASSIFY_API_URL, { prompt });
 
       if (!res.ok || !data.ok) {
         const msg =
@@ -682,7 +704,7 @@
       }
 
       // ---- Render classification response ----
-      const hs10 = data.hs10 || "N/A";
+      const hs10 = data.hs10 != null ? String(data.hs10) : "N/A";
       const labelText = data.label || "No label returned";
       const extra = data.extra || {};
       const validatorReason = data.validator_reason || "";
@@ -690,7 +712,7 @@
       const followupPrompt = data.followup_prompt || "";
 
       let extraHtml = "";
-      if (Object.keys(extra).length > 0) {
+      if (extra && typeof extra === "object" && Object.keys(extra).length > 0) {
         extraHtml =
           "<ul style='margin-top:0.4rem;padding-left:1.1rem;font-size:0.9rem;'>" +
           Object.entries(extra)
@@ -738,7 +760,7 @@
       responseContent.innerHTML = html;
 
       // If there's a followup_prompt, go into "awaiting country" mode
-      if (followupPrompt && data.hs10) {
+      if (followupPrompt && data.hs10 != null) {
         awaitingCountry = true;
         currentHs10 = data.hs10;
       } else {
@@ -746,24 +768,20 @@
         currentHs10 = null;
       }
     } catch (err) {
-      console.error(err);
+      console.error("[CLASSIFY] Network or JS error:", err);
       responseContent.innerHTML =
-        "<span style='color:#b91c1c'>Error contacting the backend. Is the Flask server running on port 5000?</span>";
+        "<span style='color:#b91c1c'>Error contacting the backend. Please try again later.</span>";
       awaitingCountry = false;
       currentHs10 = null;
     }
   });
 
-  // helper
   async function handleTradeInfo(prompt) {
     try {
-      const res = await fetch(TRADE_API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt, hs10: currentHs10 }),
+      const { res, data } = await postJson(TRADE_API_URL, {
+        prompt,
+        hs10: currentHs10,
       });
-
-      const data = await res.json();
 
       if (!res.ok || !data.ok) {
         const msg =
@@ -789,9 +807,9 @@
 
       if (dashboardUrl) {
         html +=
-          "<p><a href=\"" +
+          '<p><a href="' +
           escapeHTML(dashboardUrl) +
-          "\" target=\"_blank\" rel=\"noopener noreferrer\">" +
+          '" target="_blank" rel="noopener noreferrer">' +
           escapeHTML(dashboardUrl) +
           "</a></p>";
       }
@@ -804,7 +822,7 @@
         currentHs10 = null;
       }
     } catch (err) {
-      console.error(err);
+      console.error("[TRADE] Network or JS error:", err);
       responseContent.innerHTML =
         "<span style='color:#b91c1c'>Error contacting the backend for trade info.</span>";
       awaitingCountry = false;
