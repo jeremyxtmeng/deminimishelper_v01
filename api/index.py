@@ -314,6 +314,7 @@ def main_app():
     confidence = None
     try:
         confidence = float(hs_result.get("confidence"))
+        log_request(ip, confidence)
     except (TypeError, ValueError):
         confidence = None
 
