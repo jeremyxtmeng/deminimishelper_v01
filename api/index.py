@@ -271,7 +271,7 @@ def main_app():
             "ok": True,
             "hs10": hs_a,
             "label": hs_b,
-            "followup_prompt": followup_prompt,
+            "message": followup_prompt,
             #"message": None,  # you can also put a generic message here if you like
             }), 200
     else:    
