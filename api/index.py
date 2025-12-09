@@ -251,18 +251,32 @@ def log_request(ip: str, prompt: str) -> None:
 
 app = Flask(__name__, template_folder="templates")
 
+CORS(
+    app,
+    resources={r"/api/*": {"origins": "*"}},
+    supports_credentials=False,
+)
+
+# ---------- Error handler so you always return JSON ----------
+@app.errorhandler(Exception)
+def handle_exception(e):
+    print(f"[ERROR] {e.__class__.__name__}: {e}")
+    return jsonify({
+        "ok": False,
+        "message": f"Server error: {e.__class__.__name__}: {e}",
+    }), 500
+
+
 @app.route("/")
 def home():
     return render_template("index.html")
 
-@app.route("/api/medical-classify", methods=["POST"])
 
+@app.post("/api/medical-classify")
 ##################################################################
 #-----------------------------------------------------------------
 # classification api
 #-----------------------------------------------------------------
-@app.route("/api/medical-classify", methods=["POST"])
-
 def main_app():
     body = request.get_json(force=True)
     text = (body.get("prompt") or "").strip()
