@@ -218,8 +218,9 @@ def log_request(ip: str, prompt: str) -> None:
         "time": now_iso,
         "prompt": prompt,
     }
-
     supabase.table("user_requests").insert(payload).execute()
+
+    
 ##################################################################
 #-----------------------------------------------------------------
 # classification api
