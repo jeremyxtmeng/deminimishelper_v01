@@ -39,7 +39,8 @@ gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 # classify goods
 #-----------------------------------------------------------------
 # load product embeddings
-catalog_embeddings = np.load("app_search_hscode_embeddings_genai.npy")
+with open('app_search_hscode_embeddings_genai.npy', 'rb') as f:
+    catalog_embeddings = np.load(f, allow_pickle=True, encoding='latin1')
 
 CATALOG: List[Dict[str, Any]] = []  # [{"hs10": int, "product": str}, ...]
 
