@@ -252,55 +252,55 @@ def main_app():
             "message": f"Internal error while classifying HS10: {e}"
         }), 500
     
-    confidence = float(hs_result.get("confidence"))
+    #confidence = float(hs_result.get("confidence"))
 
     followup_prompt = (
         "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
         "information on trade policy and supply chain.")
 
     # --- 5a) Low confidence: use Gemini as fallback classifier ---
-    if  confidence > LOW_CONF_THRESHOLD:
-        hs_a=hs_result.get("hs10")
-        hs_b=hs_result.get("product")
-        return jsonify({
-            "ok": True,
-            "hs10": hs_a,
-            "label": hs_b,
-            "message": followup_prompt,
-            #"message": None,  # you can also put a generic message here if you like
-            }), 200
-    else:    
-        fallback_msg = (
-            "Your description is not in the pilot version of the database, which only contains medical devices. "
-            "I will let a Gen AI help you with a rough classification, though it may not be accurate. "
-            "Please enter a new product description afterwards.")
-
-        try:
-            gem_cls = classify_with_gemini(text)
-            hs10_guess = gem_cls.get("hs10_guess")
-            label_guess = hs_result.get("label")
-
-        except Exception:
-            return jsonify({
-                "ok": True,
-                "hs10": None,
-                "label": None,
-                "extra": {"confidence": confidence, "fallback": "gemini_error"},
-                "message": fallback_msg + " (However, the AI classifier encountered an error.)", 
-                # "validator_reason": reason,
-            }), 200
-
-        return jsonify({
-            "ok": True,
-            "hs10": hs10_guess,
-            "label": label_guess,
-            "extra": {
-                "confidence": confidence,
-                "fallback": "Gemini 3"
-            },
-            "message": fallback_msg, 
-            #"validator_reason": reason,
+    #if  confidence > LOW_CONF_THRESHOLD:
+    hs_a=hs_result.get("hs10")
+    hs_b=hs_result.get("product")
+    return jsonify({
+        "ok": True,
+        "hs10": hs_a,
+        "label": hs_b,
+        "message": "OK",
+        #"message": None,  # you can also put a generic message here if you like
         }), 200
+    #else:    
+    #    fallback_msg = (
+    #        "Your description is not in the pilot version of the database, which only contains medical devices. "
+    #        "I will let a Gen AI help you with a rough classification, though it may not be accurate. "
+    #        "Please enter a new product description afterwards.")
+#
+    #    try:
+    #        gem_cls = classify_with_gemini(text)
+    #        hs10_guess = gem_cls.get("hs10_guess")
+    #        label_guess = gem_cls.get("label")
+#
+    #    except Exception:
+    #        return jsonify({
+    #            "ok": True,
+    #            "hs10": None,
+    #            "label": None,
+    #            "extra": {"confidence": confidence, "fallback": "gemini_error"},
+    #            "message": fallback_msg + " (However, the AI classifier encountered an error.)", 
+    #            # "validator_reason": reason,
+    #        }), 200
+#
+    #    return jsonify({
+    #        "ok": True,
+    #        "hs10": hs10_guess,
+    #        "label": label_guess,
+    #        "extra": {
+    #            "confidence": confidence,
+    #            "fallback": "Gemini 3"
+    #        },
+    #        "message": fallback_msg, 
+    #        #"validator_reason": reason,
+    #    }), 200
 
 ##############################################################3
 #---------------------------------
