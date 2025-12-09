@@ -430,7 +430,7 @@ def get_tariffs_by_country(cntry: str, hs10: int) -> float:
     resp = (
         supabase
         .table("tariff_rate_2025_08")
-        .select("col1_duty, tariff_temp_total, HTS22, name")  # extra cols for debugging
+        .select("col1_duty, tariff_temp_total, hts22, name")  # extra cols for debugging
         .eq("name", cntry)
         .eq("hts22", hs10)
         .limit(1)
@@ -455,7 +455,7 @@ def get_price_by_country(country: str, hs10: int) -> float:
     resp = (
         supabase
         .table("trade_flow_2025_07")
-        .select("DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO, HTS22, name")
+        .select("DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO, hts22, name")
         .eq("name", country)
         .eq("hts22", hs10)
         .limit(1)
