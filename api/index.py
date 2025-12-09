@@ -425,46 +425,58 @@ def extract_country(text: str) -> str | None:
     return best_match
 
 def get_tariffs_by_country(cntry: str, hs10: int) -> float:
+    cntry = (cntry or "").strip()
+
     resp = (
         supabase
         .table("tariff_rate_2025_08")
-        .select("col1_duty, tariff_temp_total")
+        .select("col1_duty, tariff_temp_total, HTS22, name")  # extra cols for debugging
         .eq("name", cntry)
-        .eq("hts22",  hs10 )
+        .eq("hts22", hs10)
         .limit(1)
-        .execute()
-    )
-
-    rows = resp.data 
-
-    row = rows[0]
-    col1_duty = row.get("col1_duty") 
-    tariff_temp_total = row.get("tariff_temp_total") 
-
-    return float(col1_duty) + float(tariff_temp_total)
-
-def get_price_by_country(country: str, hs10: int) -> float:
-    resp = (
-        supabase
-        .table("trade_flow_2025_07")
-        .select('DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO')
-        .eq('name', country)
-        .eq('hts22', hs10)
-        .limit(1)              # just one row is enough
         .execute()
     )
 
     rows = resp.data or []
 
+    if not rows:
+        return 0.0
+
     row = rows[0]
-    dut_val = row.get("DUT_VAL_MO") 
-    cif_val = row.get("GEN_CIF_MO") 
-    qty     = row.get("GEN_QY1_MO") 
+    col1_duty = row.get("col1_duty") or 0
+    tariff_temp_total = row.get("tariff_temp_total") or 0
+
+    return float(col1_duty) + float(tariff_temp_total)
+
+
+def get_price_by_country(country: str, hs10: int) -> float:
+    country = (country or "").strip()
+
+    resp = (
+        supabase
+        .table("trade_flow_2025_07")
+        .select("DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO, HTS22, name")
+        .eq("name", country)
+        .eq("hts22", hs10)
+        .limit(1)
+        .execute()
+    )
+
+    rows = resp.data or []
+    if not rows:
+        return 0.0
+
+    row = rows[0]
+    dut_val = row.get("DUT_VAL_MO") or 0
+    cif_val = row.get("GEN_CIF_MO") or 0
+    qty = row.get("GEN_QY1_MO") or 0
 
     if not qty or qty == 0:
         return 0.0
+
     total = dut_val + cif_val
     return float(total) / float(qty)
+
 
 @app.post("/api/trade-info")
 
