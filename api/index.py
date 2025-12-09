@@ -282,8 +282,8 @@ def main_app():
 
         try:
             gem_cls = classify_with_gemini(text)
-            hs10_guess = gem_cls.get("hs10_guess")
-            label_guess = gem_cls.get("label")
+            hs10_guess = hs_result.get("hs10_guess")
+            label_guess = hs_result.get("label")
         except Exception:
             return jsonify({
                 "ok": True,
