@@ -426,7 +426,6 @@ def extract_country(text: str) -> str | None:
 
 def get_tariffs_by_country(cntry: str, hs10: int) -> float:
     cntry = (cntry or "").strip()
-
     resp = (
         supabase
         .table("tariff_rate_2025_08")
@@ -448,10 +447,8 @@ def get_tariffs_by_country(cntry: str, hs10: int) -> float:
 
     return float(col1_duty) + float(tariff_temp_total)
 
-
 def get_price_by_country(country: str, hs10: int) -> float:
     country = (country or "").strip()
-
     resp = (
         supabase
         .table("trade_flow_2025_07")
@@ -467,15 +464,15 @@ def get_price_by_country(country: str, hs10: int) -> float:
         return 0.0
 
     row = rows[0]
-    dut_val = row.get("DUT_VAL_MO") or 0
-    cif_val = row.get("GEN_CIF_MO") or 0
-    qty = row.get("GEN_QY1_MO") or 0
+    dut_val = row.get("DUT_VAL_MO")
+    cif_val = row.get("GEN_CIF_MO") 
+    qty = row.get("GEN_QY1_MO") 
 
-    if not qty or qty == 0:
-        return 0.0
-
-    total = dut_val + cif_val
-    return float(total) / float(qty)
+    try:
+        unit_price=(float(dut_val) + float(cif_val)) / float(qty)
+        return unit_price
+    except Exception:
+        return 0.0 
 
 
 @app.post("/api/trade-info")
