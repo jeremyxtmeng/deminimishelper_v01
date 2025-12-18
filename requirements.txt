@@ -8,6 +8,6 @@ google-generativeai
 supabase
 requests
 statsforecast
-sklearn
+scikit-learn
 joblib
 google-cloud-storage
