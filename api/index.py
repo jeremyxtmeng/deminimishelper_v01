@@ -21,11 +21,7 @@ from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 from io import BytesIO
 
-# for forecasting
-import statsmodels.formula.api as smf
-from statsforecast import StatsForecast
-from statsforecast.models import AutoARIMA
-from xgboost import XGBRegressor
+
 #-----------------------------------------------------------------
 # Configure Gemini
 #-----------------------------------------------------------------

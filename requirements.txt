@@ -7,6 +7,3 @@ Flask-Cors
 google-generativeai
 supabase
 requests
-statsmodels
-statsforecast
-xgboost
