@@ -8,6 +8,6 @@ google-generativeai
 supabase
 requests
 statsforecast
+sklearn
 joblib
 google-cloud-storage
-xgboost-cpu
