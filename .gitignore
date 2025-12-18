@@ -10,4 +10,5 @@ local_main.html
 prep_search_hscode.py
 .vscode
 utilities/
+forecast/
 

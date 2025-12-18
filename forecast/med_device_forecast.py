@@ -1,6 +1,9 @@
 # created: 12/13/2025
-# last upated: 12/17/2025
+# last upated: 12/18/2025
 # prep data of med devices and developing forecasting models
+
+# 12/18/2025
+# saving CIF value a csv file
 
 # packages
 from pathlib import Path
@@ -67,6 +70,17 @@ df_final1=df_filtered.groupby(['HTS22', 'code']).filter(lambda g: g['GEN_CIF_MO'
 df_final2=df_filtered.groupby(['HTS22', 'code']).filter(lambda g: g['GEN_CIF_MO'].isnull().any())
 
 
+# final version saved for the database
+# delete if country does no export the good at all (i.e. no churns)
+df_filtered2 = df_complete.groupby(['HTS22', 'code']).filter(lambda g: g['GEN_CIF_MO'].notnull().any())
+df_filtered2 = df_complete.drop(['name', 'iso'], axis=1)
+df_filtered2 = df_filtered2[df_filtered2['code']!=7370]
+df_filtered2 = df_filtered2.merge(df0, on='code', how='left')
+df_filtered2[['GEN_CIF_MO']] = df_filtered2[['GEN_CIF_MO']].fillna(0)
+df_filtered2=df_filtered2[['HTS22', 'time','iso', 'GEN_CIF_MO']]
+
+
+df_filtered2.to_csv('raw_p_q_data.csv', index=False)
 #---------------------------------------------------------------------
 #---------------------------------------------------------------------
 # part 1.1: testing one series for time series without zero

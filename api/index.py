@@ -21,6 +21,15 @@ from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 from io import BytesIO
 
+# packages for forecasting
+from google.cloud import storage
+import xgboost as xgb
+import joblib
+
+import statsmodels.formula.api as smf
+from statsforecast import StatsForecast
+from statsforecast.models import AutoARIMA
+from xgboost import XGBRegressor
 
 #-----------------------------------------------------------------
 # Configure Gemini
@@ -221,6 +230,9 @@ supabase_url: str = os.environ.get("SUPABASE_URL")
 supabase_key: str = os.environ.get("SUPABASE_ANON_KEY")
 supabase: Client = create_client(supabase_url, supabase_key)
 
+#supabase_url='https://qacmfkbhcngbmewhxihm.supabase.co'
+#supabase_key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhY21ma2JoY25nYm1ld2h4aWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyMTI1ODUsImV4cCI6MjA4MDc4ODU4NX0.SRuCj1rKAFz_-qHc53QG-rdEPT2UqqmEHNYgjDsTY_w'
+#supabase: Client = create_client(supabase_url, supabase_key)
 
 def is_rate_limited(ip: str) -> bool:
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS)
@@ -367,8 +379,8 @@ def main_app():
 
     # --- 5b) High confidence: normal classification + follow-up guidance ---
     followup_prompt = (
-        "What would you like to know? If you tell me the sourcing country, I can tell you the latest "
-        "information on trade policy and supply chain."
+        "I can forecast the import demand of this product and tell you the latest information of trade policy."
+        " Please tell me one sourcing country (e.g. Canada, Germany, Thailand...) and a date in the future of your interest (e.g. July, 2026)." 
     )
    
     # --- 5b) High confidence: normal classification + follow-up guidance ---
@@ -543,6 +555,11 @@ def trade_info():
         f"in August, 2025 with a unit price of ${b_val} in July 2025. "
         f"Please enter the description of another product."
     )
+
+
+
+
+
     return jsonify({
         "ok": True,
         "message": msg,
@@ -552,8 +569,6 @@ def trade_info():
         "b": b_val,
         "reset_to_product": True  # frontend back to the initial stage
     }), 200
-
-
 
 
 if __name__ == "__main__":
