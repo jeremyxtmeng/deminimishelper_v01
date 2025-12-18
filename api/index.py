@@ -21,7 +21,7 @@ from datetime import datetime, timezone, timedelta
 from supabase import create_client, Client
 from io import BytesIO
 
-
+import pandas as pd
 #-----------------------------------------------------------------
 # Configure Gemini
 #-----------------------------------------------------------------

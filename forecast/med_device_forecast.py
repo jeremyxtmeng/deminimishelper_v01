@@ -75,10 +75,7 @@ df_final2=df_filtered.groupby(['HTS22', 'code']).filter(lambda g: g['GEN_CIF_MO'
 import scipy.stats as stats
 import seaborn as sns
 
-from statsmodels.graphics.tsaplots import plot_acf
-from statsmodels.graphics.tsaplots import plot_pacf
-
-import matplotlib
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 import matplotlib.pyplot as plt
 
 from statsforecast import StatsForecast
@@ -89,28 +86,30 @@ from statsforecast.arima import arima_string
 # part 1.1.1: visual inspection
 #----------------------------------------
 
-print(df_final1['HTS22'].dtype)
-
+#print(df_final1['HTS22'].dtype)
 g1=df_final1[(df_final1['HTS22']==3002120090) & (df_final1['iso']=='NL')]
-print(f"\nThe date range: {g1['time'].min()} to { g1['time'].max()}")
+#print(f"\nThe date range: {g1['time'].min()} to { g1['time'].max()}")
 
 g1=g1.set_index('time')
 g1['unit_price']=g1['GEN_CIF_MO']/g1['GEN_QY1_MO']
+g1['y']=np.log(g1['GEN_QY1_MO'])
 
+
+#------------------
+# way 1
+#------------------
 
 # Adjusting the figure size
 fig = plt.subplots(figsize=(16, 5))
 
-# Creating a plot
+# Creating a plot with proper ticks
 #plt.plot(g1.index, g1['GEN_QY1_MO'])
-plt.plot(g1.index, g1['unit_price'])
+plt.plot(g1.index, g1['y'])
 
-# Adding a plot title and customizing its font size
 plt.title('GEN_QY1_MO', fontsize=20)
-
-# Adding axis labels and customizing their font size
 plt.xlabel('Date', fontsize=15)
 plt.ylabel('Quantity', fontsize=15)
+
 #plt.xlim(g1.index.min(), g1.index.max())
 g1_ticks = list(g1.index)
 g1_tick_label=g1_ticks[0::5]
@@ -122,20 +121,20 @@ from pylab import rcParams
 rcParams['figure.figsize'] = (18,7)
 
 
+#------------------
+# way 2
+#------------------
 g1['ds'] =g1.index
-g1['y']=np.log(g1['GEN_QY1_MO'])
 g1['unique_id']=1
 
 StatsForecast.plot(g1)
 
+# plotting acf and pacf-----------
 fig, axs = plt.subplots(nrows=1, ncols=2)
-
 plot_acf(g1["y"],  lags=24, ax=axs[0],color="fuchsia")
 axs[0].set_title("Autocorrelation");
-
 plot_pacf(g1["y"],  lags=24, ax=axs[1],color="lime")
 axs[1].set_title('Partial Autocorrelation')
-
 plt.show()
 
 #----------------------------------------
@@ -230,103 +229,366 @@ evaluate(
 
 #---------------------------------------------------------------------
 #---------------------------------------------------------------------
-# part 2.1: XGboost
+# Linear regression+ARIMA/XGboost
 #---------------------------------------------------------------------
 #---------------------------------------------------------------------
 
-# Assume 'your_data.csv' has a column 'value' with your time series
-# Or directly use a list/array
-# Example:
-# df = pd.read_csv('your_data.csv', parse_dates=['date'], index_col='date')
-# series = df['value']  # or whatever your target column is
+g1=df_final1[(df_final1['HTS22']==3002120090) & (df_final1['iso']=='NL')]
+g1['ln_GEN_QY1_MO']=np.log(g1['GEN_QY1_MO'])
+g1["time"] = pd.to_datetime(g1["time"])
+g1["quarter"] = g1["time"].dt.quarter 
 
-# For this example, replace with your actual series
-series = pd.Series(your_time_series_values)  # e.g., list or array of ~90 floats
+p = 3  # set to 1 for linear, 2 for quadratic, 3 for cubic, etc.
+g1 = g1.sort_values("time").reset_index(drop=True)
+g1["t"] = np.arange(len(g1)) # time trend starting from 0
+g1['t2']= g1['t']**2
+g1['t3']= g1['t']**3
 
-def create_lagged_dataset(series, n_lags=20):
-    """
-    Creates X (features) and y (target) using lagged values.
-    n_lags: how many past observations to use (recommend 10-30 for your size)
-    """
-    df = pd.DataFrame({'target': series})
-    for lag in range(1, n_lags + 1):
-        df[f'lag_{lag}'] = df['target'].shift(lag)
-    
-    # Optional: add more features like rolling stats
-    # df['rolling_mean_5'] = df['target'].shift(1).rolling(5).mean()
-    # df['rolling_std_5'] = df['target'].shift(1).rolling(5).std()
-    
-    df = df.dropna().reset_index(drop=True)
-    
-    X = df.drop('target', axis=1)
-    y = df['target']
-    
-    return X, y
-
-# Recommended starting point
-n_lags = 20  # Gives ~70 samples (90 - 20), adjust 10-30 based on experiments
-X, y = create_lagged_dataset(series, n_lags=n_lags)
-
-print(f"Samples after lagging: {len(X)}")  # Should be around 70
-print(X.head())
+# --- 3) Fit y on Q1,Q2,Q3 (Q4 baseline), constant, and polynomial trend ---
+import statsmodels.formula.api as smf
 
 
+res = smf.ols(formula='ln_GEN_QY1_MO~C(quarter, Treatment(reference=4))+t+t2+t3', data=g1).fit()
+print(res.summary())
+
+g1 = g1.sort_values("time").copy()
+g1["ln_GEN_QY1_MO_hat"] = res.predict(g1)   # or: res.fittedvalues (if same row order)
+g1["y"] = g1['ln_GEN_QY1_MO']-g1['ln_GEN_QY1_MO_hat']
+
+plt.figure(figsize=(10, 4))
+plt.plot(g1["time"], g1["ln_GEN_QY1_MO"], label="Actual")
+plt.plot(g1["time"], g1["ln_GEN_QY1_MO_hat"], label="Fitted")
+plt.xlabel("Time")
+plt.ylabel("Q")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+#------------------
+# way 2
+#------------------
+g1['ds'] =g1['time']
+g1['unique_id']=1
+
+StatsForecast.plot(g1)
+
+# plotting acf and pacf-----------
+fig, axs = plt.subplots(nrows=1, ncols=2)
+plot_acf(g1["y"],  lags=24, ax=axs[0],color="fuchsia")
+axs[0].set_title("Autocorrelation");
+plot_pacf(g1["y"],  lags=24, ax=axs[1],color="lime")
+axs[1].set_title('Partial Autocorrelation')
+plt.show()
+
+#----------------------------------------
+# part 1.1.2: training model
+#----------------------------------------
+
+Y_train_df = g1.loc[ g1['time']<'2024-01-01',['ds','y','unique_id']]
+Y_train_df['ds']=pd.to_datetime(Y_train_df["ds"])
+
+
+Y_test_df = g1.loc[g1['time']>='2024-01-01',['ds','y','unique_id']]
+Y_test_df['ds']=pd.to_datetime(Y_test_df["ds"])
+
+Y_train_df.shape, Y_test_df.shape
+
+sns.lineplot(Y_train_df,x="ds", y="y", label="Train")
+sns.lineplot(Y_test_df, x="ds", y="y", label="Test")
+plt.show()
+
+
+season_length = 12 # Monthly data
+horizon = len(Y_test_df) # number of predictions
+
+models = [AutoARIMA(season_length=season_length)]
+sf = StatsForecast(models=models, freq='MS')
+
+sf.fit(df=Y_train_df)
+StatsForecast(models=[AutoARIMA],freq='MS')
+
+arima_string(sf.fitted_[0,0].model_)
+
+Y_hat_df = sf.forecast(df=Y_train_df, h=horizon, fitted=True)
+Y_hat_df.head()
+
+values=sf.forecast_fitted_values()
+values
+
+Y_hat_df = Y_test_df.merge(Y_hat_df, how='left', on=['unique_id', 'ds'])
+
+
+from functools import partial
+
+import utilsforecast.losses as ufl
+from utilsforecast.evaluation import evaluate
+
+evaluate(
+    Y_test_df.merge(Y_hat_df),
+    metrics=[ufl.mse],
+    train_df=Y_train_df,
+)
+
+#----------------------------------------------------------
+#-------------- redo no plotting ---------------
+import statsmodels.formula.api as smf
+from statsforecast import StatsForecast
+from statsforecast.models import AutoARIMA
+from utilsforecast.evaluation import evaluate
+from utilsforecast.losses import mse
+
+
+cutoff = pd.Timestamp("2024-01-01")
+
+# part 1: linear model to remove trend
+g1=df_final1[(df_final1['HTS22']==3002120090) & (df_final1['iso']=='CA')]
+g1['ln_Y']=np.log(g1['GEN_QY1_MO'])
+g1["time"] = pd.to_datetime(g1["time"])
+g1["quarter"] = g1["time"].dt.quarter 
+
+p = 3 
+g1 = g1.sort_values("time").reset_index(drop=True)
+g1["t"] = np.arange(len(g1)) # time trend starting from 0
+g1['t2']= g1['t']**2
+g1['t3']= g1['t']**3
+
+# Fit y on Q1,Q2,Q3 (Q4 baseline), constant, and polynomial trend ---
+
+res = smf.ols(formula='ln_Y~C(quarter, Treatment(reference=4))+t+t2+t3', data=g1).fit()
+
+g1 = g1.sort_values("time").copy()
+g1["ln_Y_hat"] = res.predict(g1)
+g1["y"] = g1['ln_Y']-g1['ln_Y_hat']
+
+# part 2: ARIMA model
+g1['ds'] =g1['time']
+g1['unique_id']=1
+
+Y_train_df = g1.loc[ g1['time']<cutoff,['ds','y','unique_id']]
+Y_test_df = g1.loc[g1['time']>=cutoff,['ds','y','unique_id']]
+
+season_length = 12       # Monthly data
+horizon = len(Y_test_df) # number of predictions
+
+h_test = len(Y_test_df)
+
+sf = StatsForecast(models=[AutoARIMA(season_length=season_length)], freq=freq)
+sf.fit(df=Y_train_df)
+
+# forecast residuals for the test horizon
+Yhat_test = sf.forecast(df=Y_train_df, h=h_test)
+
+# (robustly) detect the forecast column name (often "AutoARIMA")
+fcst_col = [c for c in Yhat_test.columns if c not in ["unique_id", "ds"]][0]
+Yhat_test = Yhat_test.rename(columns={fcst_col: "resid_hat"})
+
+# merge and evaluate MSE on residuals
+test_merge = Y_test_df.merge(Yhat_test, on=["unique_id", "ds"], how="left")
+mse_resid = evaluate(test_merge, metrics=[mse], train_df=Y_train_df)
+print(mse_resid)
+
+# ----------------------------
+# Part 3: Forecast x periods ahead of ORIGINAL series
+#   1) forecast residuals with ARIMA
+#   2) forecast regression component for future dates
+#   3) add them back
+# ----------------------------
+
+x=6
+
+Y_all_df=pd.concat([Y_train_df, Y_test_df])
+
+sf_full = StatsForecast(models=[AutoARIMA(season_length=season_length)], freq='MS')
+sf_full.fit(df=Y_all_df)
+
+resid_fcst = sf_full.forecast(df=Y_all_df, h=x)
+fcst_col2 = [c for c in resid_fcst.columns if c not in ["unique_id", "ds"]][0]
+resid_fcst = resid_fcst.rename(columns={fcst_col2: "resid_hat"})
+
+# build future regressors for regression component
+last_time = g1["time"].max()
+future_time = pd.date_range(last_time + pd.offsets.MonthBegin(1), periods=x, freq='MS')
+
+future = pd.DataFrame({"time": future_time})
+future["quarter"] = future["time"].dt.quarter
+
+t_last = g1["t"].iloc[-1]            # last observed t = n-1
+future["t"]  = np.arange(t_last + 1, t_last + 1 + x)
+future["t2"] = future["t"]**2
+future["t3"] = future["t"]**3
+
+future["reg_hat"] = res.predict(future)
+
+# combine: ln forecast = regression forecast + residual forecast
+out = future.merge(
+    resid_fcst[["ds", "resid_hat"]].rename(columns={"ds": "time"}),
+    on="time",
+    how="left"
+)
+
+out["ln_forecast"] = out["reg_hat"] + out["resid_hat"]
+out["forecast_level"] = np.exp(out["ln_forecast"])  # optional
+
+out  # contains time, reg_hat, resid_hat, ln_forecast, forecast_level
 
 
 
-import xgboost as xgb
- 
-num_days = 50
-observations_per_day = 20
-start_p = 0.9
-end_p = 0.4
- 
-data = []
-delta_p = (end_p - start_p) / (num_days - 1)
- 
-for day in range(num_days):
-    # Simulate daily probability
-    current_p = start_p + (day * delta_p)
-    # Add some random daily component
-    observations = np.random.binomial(1, current_p, observations_per_day)
-    # Let's make the price based on past observations to simulate a drift
-    price = current_p * 1000
-    for obs in observations:
-        data.append([day + 1, obs, price])
- 
-# Convert to a dataframe
-df = pd.DataFrame(data, columns=['Day', 'Target', 'Price'])
-df['Intercept'] = 1
+#------- ploting----------
+_ = sf_full.forecast(df=Y_all_df, h=x, fitted=True)
 
 
-test=df.groupby('Day')['Target'].mean()
+resid_fit_df = None
+for meth in ["forecast_fitted_values", "fitted_values", "get_fitted_values"]:
+    if hasattr(sf_full, meth):
+        resid_fit_df = getattr(sf_full, meth)()
+        break
+g1['reg_hat']=g1['ln_GEN_QY1_MO_hat']
+
+# Build a historical dataframe with actual + fitted
+hist = g1[["time", "ln_GEN_QY1_MO", "reg_hat"]].copy()
+hist = hist.rename(columns={"time": "ds", "ln_GEN_QY1_MO": "ln_actual"})
+
+if resid_fit_df is not None:
+    # detect the residual fitted column (typically "AutoARIMA")
+    fit_col = [c for c in resid_fit_df.columns if c not in ["unique_id", "ds", "y"]][0]
+    resid_fit_df = resid_fit_df.rename(columns={fit_col: "resid_fit"})
+    hist = hist.merge(resid_fit_df[["ds", "resid_fit"]], on="ds", how="left")
+    hist["ln_fitted"] = hist["reg_hat"] + hist["resid_fit"]
+else:
+    # fallback: only regression fitted (still useful)
+    hist["ln_fitted"] = hist["reg_hat"]
+
+#------- ploting----------
+# # 2) Prepare forecast dataframe
+fcst = out[["time", "ln_forecast", "forecast_level"]].copy()
+fcst = fcst.rename(columns={"time": "ds"})
+
+#------- ploting----------
+# 3) Plot in LOG
+plt.figure(figsize=(11, 4))
+plt.plot(hist["ds"], hist["ln_actual"], label="Actual (log)")
+plt.plot(hist["ds"], hist["ln_fitted"], label="Fitted (log)")
+plt.plot(fcst["ds"], fcst["ln_forecast"], label="Forecast (log)")
+plt.axvline(hist["ds"].max(), linestyle="--", label="Forecast starts")
+plt.xlabel("Time")
+plt.ylabel("log(y)")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+#------- ploting----------
+# 4) plot in level
+hist["level_actual"] = np.exp(hist["ln_actual"])
+hist["level_fitted"] = np.exp(hist["ln_fitted"])
+
+plt.figure(figsize=(11, 4))
+plt.plot(hist["ds"], hist["level_actual"], label="Actual (level)")
+plt.plot(hist["ds"], hist["level_fitted"], label="Fitted (level)")
+plt.plot(fcst["ds"], fcst["forecast_level"], label="Forecast (level)")
+plt.axvline(hist["ds"].max(), linestyle="--", label="Forecast starts")
+plt.xlabel("Time")
+plt.ylabel("y")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+#----------------------------------------------
+# using xgboost
+#----------------------------------------------
+from xgboost import XGBRegressor
+
+# ----------------------------
+# Helper: feature engineering
+# ----------------------------
+lags = [1, 2, 3, 6, 12]
+# y is the residual from the regression
+def make_ts_features(df, ycol='y', timecol="time", lags=lags):
+    df = df.sort_values(timecol).copy()
+    #df["quarter"] = pd.to_datetime(df[timecol]).dt.quarter
+
+    # lag features
+    for L in lags:
+        df[f"lag{L}"] = df[ycol].shift(L)
+
+    return df
+
+feature_cols = ( [f"lag{L}" for L in lags])
 
 
-train_df = df[df['Day'] <= 20]
-test_df = df[df['Day'] > 20]
- 
-# Features and labels
-X_train = train_df.drop(columns=['Target', 'Price','Day'])
-y_train = train_df['Target']
-X_test = test_df.drop(columns=['Target', 'Price', 'Day'])
-y_test = test_df['Target']
- 
-print(X_train.head())
- 
-# Train the XGBoost model
-model = xgb.XGBClassifier(eval_metric='logloss')
-model.fit(X_train, y_train)
- 
-# Predict probabilities for the training set
-y_train_pred_proba = model.predict_proba(X_train)[:, 1]
-train_df['Predicted_Prob'] = y_train_pred_proba
- 
-# Predict probabilities for the test set
-y_test_pred_proba = model.predict_proba(X_test)[:, 1]
-test_df['Predicted_Prob'] = y_test_pred_proba
- 
-# Calculate the mean of the target variable and predicted probabilities for each day in both sets
-daily_means_train = train_df.groupby('Day')['Target'].mean()
-daily_probs_train = train_df.groupby('Day')['Predicted_Prob'].mean()
-daily_means_test = test_df.groupby('Day')['Target'].mean()
-daily_probs_test = test_df.groupby('Day')['Predicted_Prob'].mean()
+g1_feature = make_ts_features(g1, ycol='y', timecol="time")
+g1_feature = g1_feature.dropna(subset=feature_cols + ['y']).copy()  # drop rows without full features
+
+X_train = g1_feature.loc[ g1_feature['time']<cutoff, feature_cols]
+y_train = g1_feature.loc[ g1_feature['time']<cutoff, 'y']
+
+X_test = g1_feature.loc[ g1_feature['time']>=cutoff, feature_cols]
+y_test = g1_feature.loc[ g1_feature['time']>=cutoff, 'y']
+
+
+# ----------------------------
+# Part B: Fit XGBoost on train residuals + test MSE
+# ----------------------------
+xgb = XGBRegressor(
+    n_estimators=300,
+    learning_rate=0.1,
+    max_depth=3,
+    subsample=0.9,
+    colsample_bytree=0.9,
+    reg_lambda=1.0,
+    objective="reg:squarederror",
+    random_state=0,
+)
+xgb.fit(X_train, y_train)
+
+resid_hat_test_xgb = xgb.predict(X_test)
+mse_resid_xgb = round(float(np.mean((y_test.values - resid_hat_test_xgb) ** 2)),4)
+
+print("Residual MSE (XGBoost):", mse_resid_xgb)
+
+
+resid_series = g1.set_index("time")["y"].copy()
+last_time = resid_series.index.max()
+future_dates = pd.date_range(last_time + pd.offsets.MonthBegin(1), periods=x, freq='MS')
+
+def xgb_predict_one_step(series):
+    # build one-row feature vector from current series history
+    row = {}
+    for L in lags:
+        row[f"lag{L}"] = series.iloc[-L] if len(series) >= L else np.nan
+
+    Xrow = pd.DataFrame([row])[feature_cols]
+    return float(xgb.predict(Xrow)[0])
+
+resid_fcst_xgb = []
+series_work = resid_series.copy()
+
+# ensure we have enough history to compute features
+min_needed = max(lags)
+if len(series_work) < min_needed:
+    raise ValueError(f"Not enough history to forecast: need at least {min_needed} observations.")
+
+for dt in future_dates:
+    yhat = xgb_predict_one_step(series_work)
+    resid_fcst_xgb.append({"time": dt, "resid_hat_xgb": yhat})
+    series_work.loc[dt] = yhat  # append prediction for next-step lags/rolls
+
+resid_fcst_xgb = pd.DataFrame(resid_fcst_xgb)
+
+
+forecast_df = (
+    out.merge(resid_fcst_xgb,   on="time", how="left")
+)
+
+# final forecasts in log
+forecast_df["ln_forecast_xgb"]   = forecast_df["reg_hat"] + forecast_df["resid_hat_xgb"]
+
+# level forecasts
+forecast_df["forecast_level_xgb"]   = np.exp(forecast_df["ln_forecast_xgb"])
+
+# add MSE columns (constants repeated for convenience)
+forecast_df["mse_resid_arima"] = round(float(mse_resid['resid_hat'].iloc[0]),4)
+forecast_df["mse_resid_xgb"]   = mse_resid_xgb
+
+forecast_df
+
+
