@@ -29,8 +29,6 @@ import joblib
 import statsmodels.formula.api as smf
 from statsforecast import StatsForecast
 from statsforecast.models import AutoARIMA
-from xgboost import XGBRegressor
-
 #-----------------------------------------------------------------
 # Configure Gemini
 #-----------------------------------------------------------------
