@@ -26,7 +26,6 @@ from google.cloud import storage
 import xgboost as xgb
 import joblib
 
-import statsmodels.formula.api as smf
 from statsforecast import StatsForecast
 from statsforecast.models import AutoARIMA
 #-----------------------------------------------------------------
