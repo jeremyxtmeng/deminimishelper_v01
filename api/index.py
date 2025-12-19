@@ -25,7 +25,6 @@ from io import BytesIO
 from google.cloud import storage
 import joblib
 
-from sklearn.linear_model import LinearRegression
 from statsforecast import StatsForecast
 from statsforecast.models import AutoARIMA
 #-----------------------------------------------------------------
