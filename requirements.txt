@@ -7,6 +7,5 @@ Flask-Cors
 google-generativeai
 supabase
 requests
-xgboost-cpu
 joblib
 google-cloud-storage
