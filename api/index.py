@@ -55,24 +55,25 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # Configure google cloud storage
 #---------------------------------------------------------------------------------------------------
 
-def get_gcp_credentials():
-    project_id = os.environ["GCP_PROJECT_ID"]
-    client_email = os.environ["GCP_SERVICE_ACCOUNT_EMAIL"]
-    private_key = os.environ["GCP_PRIVATE_KEY"]
+def get_storage_client() -> storage.Client:
+    try:
+        # Works locally if ADC is configured
+        return storage.Client()
+    except Exception:
+        project_id = os.environ["GCP_PROJECT_ID"]
+        client_email = os.environ["GCP_SERVICE_ACCOUNT_EMAIL"]
+        private_key = os.environ["GCP_PRIVATE_KEY"].replace("\\n", "\n")
 
-    # Vercel often stores newlines as literal "\n"
-    private_key = private_key.replace("\\n", "\n")
-
-    info = {
-        "type": "service_account",
-        "project_id": project_id,
-        "client_email": client_email,
-        "private_key": private_key,
-        "token_uri": "https://oauth2.googleapis.com/token",
-    }
-
-    creds = service_account.Credentials.from_service_account_info(info)
-    return creds, project_id
+        info = {
+            "type": "service_account",
+            "project_id": project_id,
+            "client_email": client_email,
+            "private_key": private_key,
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+        creds = service_account.Credentials.from_service_account_info(info)
+        return storage.Client(project=project_id, credentials=creds)
+    
 #-----------------------------------------------------------------------------------------------------
 # functions used to classify goods
 #------------------------------------------------------------------------------------------------------
@@ -454,7 +455,7 @@ def main_forecast(user_q:int, user_m: int, user_y: int, hs10:int, iso: str)-> st
         BUCKET_NAME = "deminimishelper"
         PREFIX = "models"
         series_id = f'{hs10}_{iso}' 
-        storage_client = storage.Client()
+        storage_client = get_storage_client()
         bucket = storage_client.bucket(BUCKET_NAME)
 
         gcs_path = f"{PREFIX}/{series_id}.json"
