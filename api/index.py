@@ -1,6 +1,7 @@
 # created: 12/07/2025
-# last updated: 12/07/2025
+# last updated: 12/18/2025
 # app for searching hs code
+# adding the forecasting
 
 import os
 import requests
@@ -23,15 +24,11 @@ from io import BytesIO
 
 # packages for forecasting
 from google.cloud import storage
-import joblib
+from typing import Optional
 
-#import statsmodels.formula.api as smf
-#from statsforecast import StatsForecast
-#from statsforecast.models import AutoARIMA
-#from xgboost import XGBRegressor
-#-----------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 # Configure Gemini
-#-----------------------------------------------------------------
+#---------------------------------------------------------------------------------------------------
 
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
@@ -43,7 +40,18 @@ GEMINI_MODEL_NAME = "gemma-3-4b-it"
 
 gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
 
-#----------------------------------------
+#---------------------------------------------------------------------------------------------------
+# Configure database
+#---------------------------------------------------------------------------------------------------
+
+# code for Vercel
+supabase_url: str = os.environ.get("SUPABASE_URL")
+supabase_key: str = os.environ.get("SUPABASE_ANON_KEY")
+supabase: Client = create_client(supabase_url, supabase_key)
+
+#-----------------------------------------------------------------------------------------------------
+# functions used to classify goods
+#------------------------------------------------------------------------------------------------------
 EMBED_URL = os.environ.get(
     "EMBED_URL",
     "https://qacmfkbhcngbmewhxihm.supabase.co/storage/v1/object/public/static_file/app_search_hscode_embeddings_genai.npy",
@@ -141,9 +149,10 @@ def classify_goods(user_des: str) -> Dict[str, Any]:
         "product": best["product"],
         "confidence": best["confidence"],
     }
-#-----------------------------------------------------------------
-# functions on the prompt to gemini
-#-----------------------------------------------------------------
+
+#---------------------------------------------------------------------------------------------------
+# functions to work with gemini
+#---------------------------------------------------------------------------------------------------
 
 #---------------1: determining valid description-------------------
 def ask_gemini(prompt: str) -> str:
@@ -208,29 +217,14 @@ def classify_with_gemini(text: str) -> dict:
     return json.loads(s)
 
 
-#app = Flask(__name__)
 
-#CORS(
-#    app,
-#    resources={r"/api/*": {"origins": "*"}},
-#    supports_credentials=False,
-#)
-
-
-#-----------------------------------------------------------------
-# setting up limits to user requests
-#-----------------------------------------------------------------
-RATE_LIMIT = 10          # max prompts per IP
-WINDOW_SECONDS = 300    # 5-minute window
-
-# Supabase HTTP client (keep this if you still use Supabase auth/storage/etc.)
-supabase_url: str = os.environ.get("SUPABASE_URL")
-supabase_key: str = os.environ.get("SUPABASE_ANON_KEY")
-supabase: Client = create_client(supabase_url, supabase_key)
-
-#supabase_url='https://qacmfkbhcngbmewhxihm.supabase.co'
-#supabase_key='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFhY21ma2JoY25nYm1ld2h4aWhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjUyMTI1ODUsImV4cCI6MjA4MDc4ODU4NX0.SRuCj1rKAFz_-qHc53QG-rdEPT2UqqmEHNYgjDsTY_w'
-#supabase: Client = create_client(supabase_url, supabase_key)
+#---------------------------------------------------------------------------------------------------
+# functions for setting up limits to user requests
+#---------------------------------------------------------------------------------------------------
+RATE_LIMIT = 10             # max prompts per IP
+WINDOW_SECONDS = 300        # 5-minute window
+WINDOW_SECONDS_STAGE2 = 60  # 5-minute window
+STAGE2_RATE_LIMIT=3         # how many times to remind users 
 
 def is_rate_limited(ip: str) -> bool:
     cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS)
@@ -248,17 +242,238 @@ def is_rate_limited(ip: str) -> bool:
     count = resp.count or 0
     return count >= RATE_LIMIT
 
-def log_request(ip: str, prompt: str) -> None:
+def is_stage2_rate_limited(ip: str) -> bool:
+    cutoff = datetime.now(timezone.utc) - timedelta(seconds=WINDOW_SECONDS_STAGE2)
+    cutoff_iso = cutoff.isoformat()
 
+    resp = (
+        supabase
+        .table("user_requests")
+        .select("id", count="exact")
+        .eq("ip", ip)
+        .eq("stage2", True)
+        .gte("time", cutoff_iso)
+        .execute()
+    )
+
+    count = resp.count or 0
+    return count > STAGE2_RATE_LIMIT
+
+def log_request(ip: str, prompt: str, hs10: Optional[int] = None) -> None:
     now_iso = datetime.now(timezone.utc).isoformat()
+
+    stage2 = hs10 is not None
 
     payload = {
         "ip": ip,
         "time": now_iso,
         "prompt": prompt,
+        "stage2": stage2,
     }
     supabase.table("user_requests").insert(payload).execute()
 
+
+#---------------------------------------------------------------------------------------------------
+# functions to extract country names
+#---------------------------------------------------------------------------------------------------
+
+COUNTRY_NAMES = {'Albania':'AL','Armenia':'AM','Australia':'AU','Azerbaijan':'AZ','Barbados':'BB','Botswana':'BW','Czech Republic':'CZ','Ecuador':'EC','Eswatini':'SZ','Ethiopia':'ET','Guinea':'GN','Guyana':'GY','India':'IN','Jamaica':'JM','Kyrgyzstan':'KG','Laos':'LA','Malaysia':'MY','Mali':'ML','Niue':'NU','Saint Helena':'SH','San Marino':'SM','Solomon Islands':'SB','Suriname':'SR','United Arab Emirates':'AE','Afghanistan':'AF','Andorra':'AD','Angola':'AO','Argentina':'AR','Aruba':'AW','Austria':'AT','Bahamas':'BS','Bahrain':'BH','Bangladesh':'BD','Belarus':'BY','Belgium':'BE','Belize':'BZ','Bermuda':'BM','Bolivia':'BO','Bosnia and Hercegovina':'BA','Brazil':'BR','Brunei':'BN','Bulgaria':'BG','Cambodia':'KH','Cameroon':'CM','Canada':'CA','Cayman Islands':'KY','Chile':'CL','China':'CN','Cocos Keeling Islands':'CC','Colombia':'CO','Congo Democratic Zaire':'CD','Costa Rica':'CR','Cote dIvoire':'CI','Croatia':'HR','Curacao':'CW','Cyprus':'CY','Denmark except Greenland':'DK','Dominican Republic':'DO','Egypt':'EG','El Salvador':'SV','Estonia':'EE','Fiji':'FJ','Finland':'FI','France':'FR','French Polynesia':'PF','Gabon':'GA','Georgia':'GE','Germany':'DE','Ghana':'GH','Greece':'GR','Greenland':'GL','Guadeloupe':'GP','Guatemala':'GT','Haiti':'HT','Honduras':'HN','Hong Kong':'HK','Hungary':'HU','Iceland':'IS','Indonesia':'ID','Ireland':'IE','Israel':'IL','Italy':'IT','Japan':'JP','Jordan':'JO','Kazakhstan':'KZ','Kenya':'KE','Kiribati':'KI','Latvia':'LV','Lebanon':'LB','Libya':'LY','Liechtenstein':'LI','Lithuania':'LT','Luxembourg':'LU','Macao':'MO','Macedonia':'MK','Madagascar':'MG','Malawi':'MW','Maldives':'MV','Malta':'MT','Marshall Islands':'MH','Martinique':'MQ','Mauritius':'MU','Mexico':'MX','Moldova':'MD','Monaco':'MC','Mongolia':'MN','Montenegro':'ME','Morocco':'MA','Mozambique':'MZ','Myanmar':'MM','Nepal':'NP','Netherlands':'NL','New Zealand':'NZ','Nicaragua':'NI','Niger':'NE','Nigeria':'NG','Norway':'NO','Oman':'OM','Pakistan':'PK','Panama':'PA','Paraguay':'PY','Peru':'PE','Philippines':'PH','Poland':'PL','Portugal':'PT','Qatar':'QA','Republic of the Congo':'CG','Romania':'RO','Russia':'RU','Saint Kitts and Nevis':'KN','Saudi Arabia':'SA','Senegal':'SN','Serbia':'RS','Seychelles':'SC','Sierra Leone':'SL','Singapore':'SG','Slovakia':'SK','Slovenia':'SI','South Africa':'ZA','South Korea':'KR','Spain':'ES','Sri Lanka':'LK','Sweden':'SE','Switzerland':'CH','Taiwan':'TW','Tanzania':'TZ','Thailand':'TH','Togo':'TG','Tonga':'TO','Trinidad and Tobago':'TT','Tunisia':'TN','Turkey':'TR','Uganda':'UG','Ukraine':'UA','United Kingdom':'GB','Uruguay':'UY','Uzbekistan':'UZ','Venezuela':'VE','Vietnam':'VN'}
+
+def remove_parentheses_content(text):
+  return re.sub(r'\([^)]*\)', '', text)
+
+def extract_country(text: str) -> str | None:
+    tl = text.lower()
+    best_match = None
+    for name,_ in COUNTRY_NAMES.items():
+        nl = remove_parentheses_content(name.lower())
+        n2 = nl.strip()
+        if n2 in tl:
+            best_match = name
+    return best_match
+
+
+#---------------------------------------------------------------------------------------------------
+# functions to extract tariffs and prices from the DB
+#---------------------------------------------------------------------------------------------------
+
+def get_tariffs_by_country(cntry: str, hs10: int) -> float:
+    cntry = (cntry or "").strip()
+    resp = (
+        supabase
+        .table("tariff_rate_2025_08")
+        .select("col1_duty, tariff_temp_total, hts22, name")  # extra cols for debugging
+        .eq("name", cntry)
+        .eq("hts22", hs10)
+        .limit(1)
+        .execute()
+    )
+
+    rows = resp.data or []
+
+    if not rows:
+        return 0.0
+
+    row = rows[0]
+    col1_duty = row.get("col1_duty") or 0
+    tariff_temp_total = row.get("tariff_temp_total") or 0
+
+    return float(col1_duty) + float(tariff_temp_total)
+
+def get_price_by_country(country: str, hs10: int) -> float:
+    country = (country or "").strip()
+    resp = (
+        supabase
+        .table("trade_flow_2025_07")
+        .select("DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO, hts22, name")
+        .eq("name", country)
+        .eq("hts22", hs10)
+        .limit(1)
+        .execute()
+    )
+
+    rows = resp.data or []
+    if not rows:
+        return 0.0
+
+    row = rows[0]
+    dut_val = row.get("DUT_VAL_MO")
+    cif_val = row.get("GEN_CIF_MO") 
+    qty = row.get("GEN_QY1_MO") 
+
+    try:
+        unit_price=(float(dut_val) + float(cif_val)) / float(qty)
+        return unit_price
+    except Exception:
+        return 0.0 
+
+
+#---------------------------------------------------------------------------------------------------
+# functions to forecast
+#---------------------------------------------------------------------------------------------------
+
+def gemini_date_extraction(text: str): 
+    prompt =f"""
+    You are extracting information on year and month from a description. Determine the year and month. For the month, determine the quarter.
+    Given the description, extract the following as integers
+        - "valid_date": True if the description contains information of a date with descriptions of month and year after (inclusive) August, 01, 2025
+        - "user_q": the quarter of the month in the description; if no available information then return 1
+        - "user_m": the month in the description; if no avaialble information then return 1
+        - "user_y": the year in the description; if no available information then return 2026
+
+    Return ONLY valid JSON in this exact format:
+        {{"valid_date": "<bool>", "user_q": "<int>", "user_m": "<int>", "user_y": "<int>"}}
+
+    Description:
+        \"\"\"{text}\"\"\"
+    """
+
+    raw = ask_gemini(prompt)
+    s = raw.strip()
+
+    # Remove leading ```... language fences
+    # e.g. ```json\n or ```\n
+    s = re.sub(r"^```[a-zA-Z]*\s*", "", s)
+
+    # Remove trailing ```
+    s = re.sub(r"\s*```$", "", s)
+
+    user_date=json.loads(s)
+
+    user_q=int(user_date.get('user_q'))
+    user_m=int(user_date.get('user_m'))
+    user_y=int(user_date.get('user_y'))
+
+    return user_q, user_m, user_y
+
+# use existing forecast if t<=108, then directly pull forecasts
+def forecast_pre_computed(t: int, hs10: int, iso: str) -> float:
+    resp = (
+        supabase
+        .table("forecast_all_results")
+        .select("t, forecast_level_xgb, hts22, iso")  # extra cols for debugging
+        .eq("t", t)
+        .eq("hts22", hs10)
+        .eq("iso",iso)
+        .limit(1)
+        .execute()
+    )
+
+    rows = resp.data
+    row = rows[0]
+    return round(float(row.get("forecast_level_xgb")),4)
+
+
+def forecast_resid_dict(hs10: int, iso: str) -> Dict[int, float]:
+    resp = (
+        supabase
+        .table("forecast_all_results")
+        .select("t, resid_hat")
+        .eq("hts22", hs10)
+        .eq("iso", iso)
+        .execute()
+    )
+
+    rows: List[dict] = resp.data or []
+    return {row["t"]: row["resid_hat"] for row in rows}
+
+
+def main_forecast(user_q:int, user_m: int, user_y: int, hs10:int, iso: str)-> str:
+    user_t=12*(user_y-2017)+(user_m-1)
+    if user_t<103:
+        y_hat=forecast_pre_computed(108, hs10, iso)
+        meg_forecast=f'There are already stats for the date you entered. But the import demand is projected to be ${y_hat} in January 2026 using a ML (XGBoost) model.'
+    elif 104<=user_t<=108:
+        y_hat=forecast_pre_computed(user_t, hs10, iso)
+        meg_forecast=f'The import demand is projected to be ${y_hat} in {user_y}-{user_m} using a ML (XGBoost) model.'
+    else:
+        BUCKET_NAME = "deminimishelper"
+        PREFIX = "models"
+        series_id = f'{hs10}_{iso}' 
+        storage_client = storage.Client()
+        bucket = storage_client.bucket(BUCKET_NAME)
+
+        gcs_path = f"{PREFIX}/{series_id}.json"
+        blob = bucket.blob(gcs_path)
+        json_string = blob.download_as_bytes().decode('utf-8') # Download the blob content as a string of bytes, then decode to utf-8
+        pm= json.loads(json_string) # Parse the JSON string into a Python dictionary
+
+        reg_hat=pm['constant']+int(user_q==1)*pm['fe_q1']+int(user_q==2)*pm['fe_q2']+int(user_q==3)*pm['fe_q3']+pm['t']*user_t+pm['t2']*(user_t**2)+pm['t3']*(user_t**3)
+
+        i=109 # the period not forecasted
+        rhat=forecast_resid_dict(hs10, iso)
+
+        while i<=user_t:
+            resid_hat_one_step=pm['ar1']*rhat[i-1]+pm['ar2']*rhat[i-2]+pm['ar3']*rhat[i-3]+pm['ar4']*rhat[i-4]+pm['ar5']*rhat[i-5]
+            rhat[i]=resid_hat_one_step
+            i+=1
+        y_hat=round(np.exp(reg_hat+rhat[user_t])-1,4)
+        meg_forecast=f'The import demand is projected to be ${y_hat} in {user_y}-{user_m} using an ARIMA model.'
+    return meg_forecast
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+####################################################################################################################################
+####################################################################################################################################
+#-----------------------------------------------------------------#-----------------------------------------------------------------
+# start of the app
+#-----------------------------------------------------------------#-----------------------------------------------------------------
+####################################################################################################################################
+####################################################################################################################################
 app = Flask(__name__, template_folder="templates")
 
 CORS(
@@ -281,12 +496,16 @@ def handle_exception(e):
 def home():
     return render_template("index.html")
 
+####################################################################################################################################
+####################################################################################################################################
+#-----------------------------------------------------------------#-----------------------------------------------------------------
+# classification api
+#-----------------------------------------------------------------#-----------------------------------------------------------------
+####################################################################################################################################
+####################################################################################################################################
 
 @app.post("/api/medical-classify")
-##################################################################
-#-----------------------------------------------------------------
-# classification api
-#-----------------------------------------------------------------
+
 def main_app():
     body = request.get_json(force=True)
     text = (body.get("prompt") or "").strip()
@@ -344,10 +563,7 @@ def main_app():
 
     # --- 5a) Low confidence: use Gemini as fallback classifier ---
     if confidence is None or confidence < LOW_CONF_THRESHOLD:
-        fallback_msg = (
-            "Your description is not in the pilot version of the database, which only contains medical devices. "
-            "I will let a Gen AI help you with a rough classification, though it may not be accurate. "
-            "Please enter a new product description afterwards.")
+        fallback_msg = ("Your description is not in the pilot version of the database, which only contains medical devices. I will let a Gen AI help you with a rough classification, though it may not be accurate. Please enter a new product description afterwards.")
 
         try:
             gem_cls = classify_with_gemini(text)
@@ -378,7 +594,7 @@ def main_app():
     # --- 5b) High confidence: normal classification + follow-up guidance ---
     followup_prompt = (
         "I can forecast the import demand of this product and tell you the latest information of trade policy."
-        " Please tell me one sourcing country (e.g. Canada, Germany, Thailand...) and a date in the future of your interest (e.g. July, 2026)." 
+        " Please tell me one sourcing country (e.g. Canada, Germany, Thailand...) and a date (the exact format does not matter) after July 31, 2025 of your interest (e.g. July 2026)." 
     )
    
     # --- 5b) High confidence: normal classification + follow-up guidance ---
@@ -391,99 +607,13 @@ def main_app():
         "followup_prompt": followup_prompt}), 200
 
 
-##############################################################3
-#---------------------------------
-COUNTRY_NAMES = [
-    "Bangladesh","Indonesia","Venezuela","Kiribati","Cameroon","Luxembourg",
-    "Czech Republic","Sweden","Montenegro","Uganda","Jordan","Dominican Republic",
-    "Saint Helena","Cambodia","Ireland","Macedonia","Singapore","Sri Lanka",
-    "San Marino","Brunei","Uzbekistan","Portugal","Finland","Malta","Colombia",
-    "Albania","Cayman Islands","Saudi Arabia","Ukraine","Cote d'Ivoire","Latvia",
-    "Kyrgyzstan","France","Maldives","Slovakia","Israel","Ghana","Kenya","Senegal",
-    "Malaysia","Iceland","Madagascar","Hong Kong","Sierra Leone","Philippines",
-    "Guinea","Cyprus","Turkey","Nigeria","Cocos (Keeling) Islands",
-    "Laos (Lao People's Democratic Republic)","China","Bosnia and Hercegovina",
-    "Armenia","Belarus","Qatar","Netherlands","Gabon","Paraguay","Martinique",
-    "Australia","Serbia","Mauritius","Angola","Libya","Bahrain","Spain",
-    "United Arab Emirates","Georgia","Malawi","Belgium","Monaco","Curacao","Taiwan",
-    "Solomon Islands","Thailand","Germany (Federal Republic of Germany)","Togo",
-    "Niue","El Salvador","Italy","Uruguay","Oman","Congo","Republic of the Congo",
-    "Eswatini","Fiji","United Kingdom","South Korea (Republic of Korea)","Canada",
-    "Barbados","Bermuda","Marshall Islands","Argentina","Liechtenstein",
-    "Azerbaijan","Slovenia","Egypt","Greece","Bahamas","Afghanistan","Denmark, except Greenland",
-    "India","Saint Kitts and Nevis","French Polynesia","Chile","Estonia","Vietnam",
-    "Suriname","South Africa","Peru","Kazakhstan","Guadeloupe","Japan","Macao",
-    "Jamaica","Trinidad and Tobago","Mongolia","Mozambique","Seychelles","Switzerland",
-    "Ecuador","New Zealand","Hungary","Russia","Belize","Norway","Honduras",
-    "Botswana","Pakistan","Romania","Brazil","Austria","Guatemala","Bolivia",
-    "Ethiopia","Niger","Panama","Lithuania","Bulgaria","Croatia","Tunisia","Aruba",
-    "Mali","Morocco","Moldova","Myanmar","Nicaragua","Mexico","Nepal","Tonga",
-    "Guyana","Tanzania","Poland","Greenland","Lebanon","Costa Rica","Haiti","Andorra"
-]
-
-def remove_parentheses_content(text):
-  return re.sub(r'\([^)]*\)', '', text)
-
-def extract_country(text: str) -> str | None:
-    tl = text.lower()
-    best_match = None
-    for name in COUNTRY_NAMES:
-        nl = remove_parentheses_content(name.lower())
-        n2 = nl.strip()
-        if n2 in tl:
-            best_match = name
-    return best_match
-
-def get_tariffs_by_country(cntry: str, hs10: int) -> float:
-    cntry = (cntry or "").strip()
-    resp = (
-        supabase
-        .table("tariff_rate_2025_08")
-        .select("col1_duty, tariff_temp_total, hts22, name")  # extra cols for debugging
-        .eq("name", cntry)
-        .eq("hts22", hs10)
-        .limit(1)
-        .execute()
-    )
-
-    rows = resp.data or []
-
-    if not rows:
-        return 0.0
-
-    row = rows[0]
-    col1_duty = row.get("col1_duty") or 0
-    tariff_temp_total = row.get("tariff_temp_total") or 0
-
-    return float(col1_duty) + float(tariff_temp_total)
-
-def get_price_by_country(country: str, hs10: int) -> float:
-    country = (country or "").strip()
-    resp = (
-        supabase
-        .table("trade_flow_2025_07")
-        .select("DUT_VAL_MO, GEN_CIF_MO, GEN_QY1_MO, hts22, name")
-        .eq("name", country)
-        .eq("hts22", hs10)
-        .limit(1)
-        .execute()
-    )
-
-    rows = resp.data or []
-    if not rows:
-        return 0.0
-
-    row = rows[0]
-    dut_val = row.get("DUT_VAL_MO")
-    cif_val = row.get("GEN_CIF_MO") 
-    qty = row.get("GEN_QY1_MO") 
-
-    try:
-        unit_price=(float(dut_val) + float(cif_val)) / float(qty)
-        return unit_price
-    except Exception:
-        return 0.0 
-
+####################################################################################################################################
+####################################################################################################################################
+#-----------------------------------------------------------------#-----------------------------------------------------------------
+# forecast api
+#-----------------------------------------------------------------#-----------------------------------------------------------------
+####################################################################################################################################
+####################################################################################################################################
 
 @app.post("/api/trade-info")
 
@@ -523,9 +653,14 @@ def trade_info():
 
     # Call your backend functions (e.g., query PostgreSQL, etc.)
     try:
+        iso=COUNTRY_NAMES[country]
         a_rr = get_tariffs_by_country(country,hs10)
         b_rr = get_price_by_country(country,hs10)
-
+        user_q, user_m, user_y =gemini_date_extraction(text)
+        try:
+            meg_forecast=main_forecast(user_q, user_m, user_y, hs10, iso)
+        except Exception:
+            meg_forecast=f"The U.S. isn't expected to import from {country} in {user_y}-{user_m}."
     except Exception as e:
         return jsonify({
             "ok": False,
@@ -548,15 +683,20 @@ def trade_info():
             "reset_to_product": False
         }), 500
 
-    msg = (
-        f"The tariff rate of goods ({hs10}) imported from {country} is {a_val} "
-        f"in August, 2025 with a unit price of ${b_val} in July 2025. "
-        f"Please enter the description of another product."
-    )
-
-
-
-
+    if b_val>0:
+        msg = (
+            f"The tariff rate of goods ({hs10}) imported from {country}({iso}) is {a_val} "
+            f"in August, 2025 with a unit price of ${b_val} in July 2025. "
+            f"{meg_forecast}"
+            f"Please enter the description of another product."
+        )
+    else: 
+        msg = (
+            f"The tariff rate of goods ({hs10}) imported from {country}({iso}) is {a_val} "
+            f"in August, 2025. However, no imports in July 2025. "
+            f"{meg_forecast} "
+            f"Please enter the description of another product."
+        )
 
     return jsonify({
         "ok": True,
