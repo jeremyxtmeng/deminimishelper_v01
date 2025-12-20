@@ -9,3 +9,4 @@ supabase
 requests
 joblib
 google-cloud-storage
+google-auth
