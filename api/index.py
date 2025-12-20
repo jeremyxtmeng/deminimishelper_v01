@@ -55,15 +55,9 @@ supabase: Client = create_client(supabase_url, supabase_key)
 # Configure google cloud storage
 #---------------------------------------------------------------------------------------------------
 
-if os.environ.get("GCP_PRIVATE_KEY"):
-    credentials_info = {
-        "type": "service_account",
-        "project_id": os.environ.get("GCP_PROJECT_ID"),
-        #"private_key_id": os.environ.get("GCP_PRIVATE_KEY_ID"),
-        "private_key": os.environ.get("GCP_PRIVATE_KEY").replace('\\n', '\n'),
-        "client_email": os.environ.get("GCP_SERVICE_ACCOUNT_EMAIL"),
-    }
-    credentials = service_account.Credentials.from_service_account_info(credentials_info)
+def get_gcp_credentials():
+    info = json.loads(os.environ["GCP_SERVICE_ACCOUNT_JSON"])
+    return service_account.Credentials.from_service_account_info(info), info.get("project_id")
 
 #-----------------------------------------------------------------------------------------------------
 # functions used to classify goods
