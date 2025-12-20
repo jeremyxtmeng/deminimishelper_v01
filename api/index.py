@@ -56,9 +56,23 @@ supabase: Client = create_client(supabase_url, supabase_key)
 #---------------------------------------------------------------------------------------------------
 
 def get_gcp_credentials():
-    info = json.loads(os.environ["GCP_SERVICE_ACCOUNT_JSON"])
-    return service_account.Credentials.from_service_account_info(info), info.get("project_id")
+    project_id = os.environ["GCP_PROJECT_ID"]
+    client_email = os.environ["GCP_SERVICE_ACCOUNT_EMAIL"]
+    private_key = os.environ["GCP_PRIVATE_KEY"]
 
+    # Vercel often stores newlines as literal "\n"
+    private_key = private_key.replace("\\n", "\n")
+
+    info = {
+        "type": "service_account",
+        "project_id": project_id,
+        "client_email": client_email,
+        "private_key": private_key,
+        "token_uri": "https://oauth2.googleapis.com/token",
+    }
+
+    creds = service_account.Credentials.from_service_account_info(info)
+    return creds, project_id
 #-----------------------------------------------------------------------------------------------------
 # functions used to classify goods
 #------------------------------------------------------------------------------------------------------
