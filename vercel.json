@@ -1,6 +1,5 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/api/index" },
-    { "source": "/(.*)", "destination": "/api/templates/style.css" }
+    { "source": "/(.*)", "destination": "/api/index" }
   ]
 }
