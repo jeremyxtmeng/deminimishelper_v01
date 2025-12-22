@@ -158,9 +158,9 @@
     }
 
     .hero-title {
-      font-size: clamp(2.2rem, 3vw + 1rem, 3.1rem);
+      font-size: clamp(2rem, 3vw + 1rem, 3.1rem);
       font-weight: 700;
-      letter-spacing: 0.03em;
+      letter-spacing: 0.02em;
       margin-bottom: 0.75rem;
     }
 
@@ -372,6 +372,83 @@
     footer.site-footer span {
         opacity: 0.8;
     }
+
+    /* How It Works cards (boxed like your screenshot) */
+
+  .how-it-works{
+    margin-top: 18px;
+  }
+
+  
+  .how-title{
+    margin: 0 0 10px 0;
+    font-size: 1.05rem;     /* smaller title */
+    font-weight: 700;
+    text-align: left;       /* explicit */
+  }
+
+  .how-grid{
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;              /* slightly tighter */
+    align-items: stretch;
+    justify-items: start;   /* keep cards left */
+  }
+
+  @media (max-width: 900px){
+    .how-grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  @media (max-width: 600px){
+    .how-grid{ grid-template-columns: 1fr; }
+  }
+
+  .how-card{
+    background: #fff;
+    border: 1px solid #e6e9ef;
+    border-radius: 12px;
+    padding: 14px;          /* smaller padding */
+    box-shadow: 0 1px 0 rgba(16, 24, 40, 0.03);
+    width: 100%;
+    text-align: left;       /* all text inside left */
+  }
+
+  .how-card-head{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+    text-align: left;
+  }
+
+  .how-step-badge{
+    width: 30px;            /* slightly smaller badge */
+    height: 30px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #fff3c4;
+    color: #d97706;
+    font-weight: 700;
+    font-size: 0.95rem;
+    flex: 0 0 30px;
+  }
+
+  .how-card-title{
+    margin: 0;
+    font-size: 0.98rem;     /* smaller heading */
+    font-weight: 700;
+    text-align: left;
+  }
+
+  .how-card-text{
+    margin: 0;
+    color: #475467;
+    line-height: 1.4;
+    font-size: 0.92rem;     /* smaller body text */
+    text-align: left;       /* explicit */
+  }
+
   </style>
 </head>
 <body>
@@ -528,9 +605,9 @@
   <!-- Main hero content -->
   <main>
     <section class="hero">
-      <h1 class="hero-title">What would you like to know today?</h1>
+      <h1 class="hero-title">Goods Classification and Market Intelligence</h1>
       <p class="hero-subtitle">
-        Describe the goods you are importing into the U.S.
+        AI-assisted classifications and report generations
       </p>
 
       <!-- Prompt card -->
@@ -549,7 +626,7 @@
         <!--
           <div class="model-pill">
             <span class="model-dot"></span>
-            <span>Powered by Ollama</span>
+            <span>Data source</span>
           </div>
         -->
           <span></span><button type="submit" class="submit-btn" aria-label="Send prompt"></span>
@@ -579,6 +656,47 @@
           Stethoscopes
         </button>
       </div>
+
+      <!-- How It Works (directly under Goods to get started) -->
+      <section class="how-it-works">
+        <h2 class="how-title">How It Works</h2>
+      
+        <div class="how-grid">
+          <!-- Step 1 -->
+          <article class="how-card">
+            <div class="how-card-head">
+              <div class="how-step-badge">1</div>
+              <h3 class="how-card-title">Describe Your Product</h3>
+            </div>
+            <p class="how-card-text">
+              Enter a short description.
+            </p>
+          </article>
+        
+          <!-- Step 2 -->
+          <article class="how-card">
+            <div class="how-card-head">
+              <div class="how-step-badge">2</div>
+              <h3 class="how-card-title">Validate &amp; Classify</h3>
+            </div>
+            <p class="how-card-text">
+              HS code assigned. Tell us your sourcing country and a future date.
+            </p>
+          </article>
+        
+          <!-- Step 3 -->
+          <article class="how-card">
+            <div class="how-card-head">
+              <div class="how-step-badge">3</div>
+              <h3 class="how-card-title">Get Tariffs &amp; Supply Chain Info</h3>
+            </div>
+            <p class="how-card-text">
+              We will create a report on current trade policy and import demand forecasts.
+            </p>
+          </article>
+        </div>
+      </section>
+
     </section>
   </main>
 
@@ -588,6 +706,10 @@
         here</a> for the Github repo. </span> <span class="heart-icon">🧡</span>
   </footer>
 
+
+
+
+  
 <script>
   const CLASSIFY_API_URL = "/api/medical-classify";
   const TRADE_API_URL = "/api/trade-info";
