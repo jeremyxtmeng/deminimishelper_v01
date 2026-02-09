@@ -4,8 +4,7 @@
 numpy
 flask
 Flask-Cors
-google-generativeai
-google.genai
+google-genai
 supabase
 requests
 joblib
