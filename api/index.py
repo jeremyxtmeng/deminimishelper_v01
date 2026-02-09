@@ -130,11 +130,12 @@ def embed_with_gemini(text: str) -> np.ndarray:
     resp = client.models.embed_content(
         model="gemini-embedding-001",
         contents=text,
-        config=types.EmbedContentConfig(output_dimensionality=768),
+        config={"output_dimensionality": 768},
     )
-    vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
 
-    # L2-normalize to mimic `normalize_embeddings=True`
+    vec = np.array(resp.embeddings[0].values, dtype=np.float32)
+
+    # L2-normalize
     norm = np.linalg.norm(vec)
     if norm > 0:
         vec = vec / norm
