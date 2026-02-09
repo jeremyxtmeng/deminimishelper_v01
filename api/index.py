@@ -36,7 +36,8 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     raise RuntimeError("no GEMINI_API_KEY environment variable.")
 
-genai.configure(api_key=GEMINI_API_KEY)
+client = genai.Client(api_key=GEMINI_API_KEY)  # Gemini Developer API :contentReference[oaicite:1]{index=1}
+
 
 GEMINI_MODEL_NAME = "gemma-3-4b-it"
 
@@ -129,10 +130,10 @@ def load_catalog_from_cloud() -> None:
 
 # loading the embedding model
 def embed_with_gemini(text: str) -> np.ndarray:
-    resp = genai.embed_content(
-        model="models/text-embedding-001",  # Gemini embedding model
-        content=text,
-        config=types.EmbedContentConfig(output_dimensionality=768)
+    resp = client.models.embed_content(
+        model="gemini-embedding-001",
+        contents=text,
+        config=types.EmbedContentConfig(output_dimensionality=768),
     )
     vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
 
@@ -183,7 +184,10 @@ def classify_goods(user_des: str) -> Dict[str, Any]:
 
 #---------------1: determining valid description-------------------
 def ask_gemini(prompt: str) -> str:
-    response = gemini_model.generate_content(prompt)
+    response = client.models.generate_content(
+        model=GEMINI_MODEL_NAME,
+        contents=prompt,
+    )
     return (response.text or "").strip()
 
 def validity_with_gemini(text: str)-> dict:
