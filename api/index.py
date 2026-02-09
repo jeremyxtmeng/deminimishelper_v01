@@ -129,7 +129,7 @@ def load_catalog_from_cloud() -> None:
 # loading the embedding model
 def embed_with_gemini(text: str) -> np.ndarray:
     resp = genai.embed_content(
-        model="models/text-embedding-001",  # Gemini embedding model
+        model="models/text-embedding-005",  # Gemini embedding model
         content=text,
     )
     vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
