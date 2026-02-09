@@ -16,6 +16,7 @@ from flask_cors import CORS
 
 import google.generativeai as genai
 import re
+from google.genai import types
 
 # packages for postgre
 from datetime import datetime, timezone, timedelta
@@ -129,8 +130,9 @@ def load_catalog_from_cloud() -> None:
 # loading the embedding model
 def embed_with_gemini(text: str) -> np.ndarray:
     resp = genai.embed_content(
-        model="models/text-embedding-005",  # Gemini embedding model
+        model="models/text-embedding-001",  # Gemini embedding model
         content=text,
+        config=types.EmbedContentConfig(output_dimensionality=768)
     )
     vec = np.array(resp["embedding"], dtype=np.float32)  # shape: (dim,)
 
