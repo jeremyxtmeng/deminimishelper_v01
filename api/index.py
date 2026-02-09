@@ -14,9 +14,9 @@ import json
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import re
-from google.generativeai import types
 
 # packages for postgre
 from datetime import datetime, timezone, timedelta
