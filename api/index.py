@@ -16,7 +16,7 @@ from flask_cors import CORS
 
 import google.generativeai as genai
 import re
-from google.genai import types
+from google.generativeai import types
 
 # packages for postgre
 from datetime import datetime, timezone, timedelta
