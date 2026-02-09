@@ -40,9 +40,6 @@ client = genai.Client(api_key=GEMINI_API_KEY)  # Gemini Developer API :contentRe
 
 
 GEMINI_MODEL_NAME = "gemma-3-4b-it"
-
-gemini_model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-
 #---------------------------------------------------------------------------------------------------
 # Configure database
 #---------------------------------------------------------------------------------------------------
