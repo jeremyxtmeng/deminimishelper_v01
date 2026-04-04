@@ -4,6 +4,8 @@
 # adding the forecasting
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import requests
 import numpy as np
 from typing import List, Dict, Any
