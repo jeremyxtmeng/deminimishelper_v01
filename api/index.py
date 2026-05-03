@@ -1,5 +1,6 @@
 # created: 12/07/2025
 # last updated: 12/18/2025
+# last updated: 05/03/2025
 # app for searching hs code
 # adding the forecasting
 
@@ -39,7 +40,7 @@ if not GEMINI_API_KEY:
 client = genai.Client(api_key=GEMINI_API_KEY)  # Gemini Developer API :contentReference[oaicite:1]{index=1}
 
 
-GEMINI_MODEL_NAME = "gemma-3-4b-it"
+GEMINI_MODEL_NAME = "gemini-3.1-flash-lite-preview"
 #---------------------------------------------------------------------------------------------------
 # Configure database
 #---------------------------------------------------------------------------------------------------
