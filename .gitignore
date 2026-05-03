@@ -1,4 +1,5 @@
 .venv/
+.env
 db_prep/
 med_goods_hts22_final.csv
 test.py
