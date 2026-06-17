@@ -562,9 +562,12 @@ def main_app():
         parsed=validity_with_gemini(text)
     # 2) If Gemini output isn't valid JSON, return error
     except Exception as e:
+        # Log the real cause server-side so we can tell API errors from JSON-parse errors
+        print(f"[validity_with_gemini ERROR] {e.__class__.__name__}: {e}")
         return jsonify({
-            "ok": False,  
-            "message": "Your description is not validated. Please describe ONE medical device or equipment."
+            "ok": False,
+            "message": "Your description is not validated. Please describe ONE medical device or equipment.",
+            "debug": f"{e.__class__.__name__}: {e}",
         }), 200
 
     is_med = bool(parsed.get("is_a_product"))
