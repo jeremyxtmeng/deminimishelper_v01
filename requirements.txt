@@ -1,6 +1,7 @@
 # streamlit==1.52.0
 
 # in app.py
+python-dotenv
 numpy
 flask
 Flask-Cors
